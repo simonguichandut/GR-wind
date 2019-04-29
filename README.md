@@ -7,5 +7,4 @@ Questions and comments -> simon.guichandut@mail.mcgill.ca
 Uses a Newton-Raphson root finding approach to obtain the minimizing set of parameters (Ts,Edot) .  Pre-solved roots are available in the `solutions` subfolder
 
 To make plots :
-
     python Plots.py
