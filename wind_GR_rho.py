@@ -4,6 +4,9 @@ import numpy as np
 from numpy import linspace,sqrt,log10,array
 from math import pi
 
+# This vers uses rho = 10^4 as inner BC 
+# Fist version of code, last update Apr 29 (possibly deprecated)
+
 # --------------------------------------- Constants and parameters --------------------------------------------
 
 tauOuter = 3.0 # Flexible outer photosphere optical depth, 3<tau<5
@@ -155,7 +158,7 @@ def calculateVars(r,T,phi=0,rho=-1,inwards=False,return_all=False):
 
 def dr(inic,r,inwards):
     
-    ''' Calculates the derivatives of T and phi with r as the independent variable '''
+    ''' Calculates the derivatives of T and phi with r as the independnt variable '''
 
     T,phi = inic[:2]
     u,rho,phi,Lstar = calculateVars(r,T,phi=phi,inwards=inwards)
