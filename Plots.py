@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 from numpy import log10, pi, array, linspace, logspace
 
 from wind_GR import MakeWind
+from output_data import write_to_file
 
-setup = ['He',1.4,10,3,4]  # composition,M/Msun,R(km),tau_outer,log10rho_inner
+# composition,M/Msun,R(km),tau_outer,log10rho_inner
+setup = ['He', 1.4, 10, 3, 4]
 
 c = 2.99792458e10
 kappa0 = 0.2
@@ -22,9 +24,9 @@ with open('solutions/sols_He_1.4_10_3.txt', 'r') as f:
     next(f)
     next(f)
     for line in f:
-            stuff = line.split()
-            logMdots.append(float(stuff[0]))
-            roots.append([float(stuff[1]), float(stuff[2])])
+        stuff = line.split()
+        logMdots.append(float(stuff[0]))
+        roots.append([float(stuff[1]), float(stuff[2])])
 
 # Radius-Luminosity (fig. 2)
 fig1, ax1 = plt.subplots(1, 1)
@@ -70,11 +72,15 @@ Lbs = []
 i = 0
 for logMdot, root in zip(logMdots, roots):
 
+    print(logMdot)
     global Mdot, verbose
     Mdot, verbose = 10**logMdot, 0
 
     R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = MakeWind(
         root, logMdot, mode='wind')
+
+    data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
+    write_to_file(setup, logMdot, data)
 
     if logMdot in (17, 17.5, 18, 18.5, 19):
         ax1.plot(log10(R), log10(Lstar/LEdd),
