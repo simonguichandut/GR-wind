@@ -1,6 +1,6 @@
 Calculates the structure of an 1D optically thick neutron star wind in GR 
-Uses a GR analog of the "phi" variable of Joss & Melia (1987) to integrate away and inwards from the critical point.
-Referencing equations from Paczynski & Proczynski (1986)
+Uses a GR analog of the "phi" variable of [Joss & Melia (1987)](http://adsabs.harvard.edu/abs/1987ApJ...312..700J) to integrate away and inwards from the critical point.
+Referencing equations from [Paczynski & Proczynski (1986)](http://adsabs.harvard.edu/abs/1986ApJ...302..519P).
 
 Questions and comments -> simon.guichandut@mail.mcgill.ca
 
