@@ -20,6 +20,6 @@ Composition_M/Msun_R/km_TauOuter_logPinner -> e.g `He_1.4_10_3_4/`
 
 ## Example plots
 
-![](results/He_1.4_10_3_4/plots/Luminosity.pdf)
-![](results/He_1.4_10_3_4/plots/Temperature1.pdf)
-![](results/He_1.4_10_3_4/plots/Velocity.pdf)
+![](/results/He_1.4_10_3_4/plots/Luminosity.png)
+![](/results/He_1.4_10_3_4/plots/Temperature1.png)
+![](/results/He_1.4_10_3_4/plots/Velocity.png)
