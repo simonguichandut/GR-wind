@@ -27,7 +27,7 @@ if not os.path.exists(path):   # Assuming code is being run from main directory
 # Import Winds
 logMdots = []
 roots = []
-with open('solutions/sols_He_1.4_10_3.txt', 'r') as f:
+with open('wind_solutions/sols_He_1.4_10_3.txt', 'r') as f:
     next(f)
     next(f)
     for line in f:
