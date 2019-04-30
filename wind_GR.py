@@ -1,23 +1,24 @@
 from scipy.optimize import brentq
 from scipy.integrate import odeint
 import numpy as np
-from numpy import linspace,sqrt,log10,array
-from math import pi
+from numpy import linspace,sqrt,log10,array,pi
+from IO import * 
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
-tauOuter = 3.0 # Flexible outer photosphere optical depth, 3<tau<5
-eps = 1e-6
-
-mu=4.0/3.0 # pure He
-
+# Constants
 kB=1.380658e-16
 arad=7.5657e-15
 c=2.99792458e10
 mp=1.67e-24
 kappa0=0.2 
 sigmarad=0.25*arad*c
-GM=6.6726e-8*2e33*1.4
+
+# Parameters
+M,R,y_inner,tau_out,comp,mode,save,img = import_params()
+
+if comp=='He': mu=4.0/3.0 
+GM=6.6726e-8*2e33*M
 LEdd=4*pi*c*GM/kappa0
 
 # -------------------------------------------- Microphysics ----------------------------------------------------
@@ -204,7 +205,7 @@ def outerIntegration(Ts,returnResult=False):
     inic = [Ts, 2.0]
     r_outer = 50*rs
     r = np.linspace(rs, r_outer, 5000)
-    result = odeint(dr, inic, r, args=(False,), atol=eps, rtol=eps) # contains T(r) and phi(r)
+    result = odeint(dr, inic, r, args=(False,), atol=1e-6, rtol=1e-6) # contains T(r) and phi(r)
     
     # odeint does not support stop conditions (should switch to scipy.integrate.ode, dopri5 integrator, with solout option)
     # For now, just cut the solution where the first NaN appears
@@ -231,7 +232,7 @@ def outerIntegration(Ts,returnResult=False):
         L = Lstar/(1+(u/c)**2)/Y(rr,u)**2 # eq. 3 (comoving luminosity)
         tau.append(rho*kappa(T)*rr)
         
-        if flag and tau[-1] <= tauOuter:
+        if flag and tau[-1] <= tau_out:
             flag = 0
             L1,L2 = L , 4.0*pi*rr**2*sigmarad*T**4
             photosphere = counter
@@ -242,7 +243,7 @@ def outerIntegration(Ts,returnResult=False):
             break
 
     if flag != 0: 
-        if verbose:print("tau = ", tauOuter, " never reached! Minimum tau reached :", tau[-2])
+        if verbose:print("tau = ", tau_out, " never reached! Minimum tau reached :", tau[-2])
         if flag == 2:
             if verbose:print("Phi started to increase at logr = %.2f"%log10(rr))
             
@@ -270,7 +271,7 @@ def innerIntegration_phi(r,Ts):
     ''' Integrates in from the sonic point to 0.95rs, using phi as the independent variable '''
     if verbose: print('\n**** Running innerIntegration PHI ****')
     inic = [Ts, 2.0]
-    result = odeint(dr, inic, r, args=(True,), atol=eps, rtol=eps) # contains T(r) and phi(r)
+    result = odeint(dr, inic, r, args=(True,), atol=1e-6, rtol=1e-6) # contains T(r) and phi(r)
     return result
 
 def innerIntegration_rho(rho,r95,T95,returnResult=False):
@@ -279,7 +280,7 @@ def innerIntegration_rho(rho,r95,T95,returnResult=False):
     if verbose: print('\n**** Running innerIntegration RHO ****')
     
     inic = [T95,r95]
-    result = odeint(drho, inic, rho, atol=eps, rtol=eps) # contains T(rho) and r(rho)
+    result = odeint(drho, inic, rho, atol=1e-6, rtol=1e-6) # contains T(rho) and r(rho)
     flag = 0
     
     if True in np.isnan(result):

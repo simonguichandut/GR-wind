@@ -11,12 +11,24 @@ Uses a Newton-Raphson root finding approach to obtain the minimizing set of para
 
 ## How-to
 
+Parameters are given in `params.txt`
+* M : NS mass in solar mass units                                                             
+* R : NS radius in km                                                                                        
+* y_inner : Column density at the beginning of the wind in g/cm2 
+* tau_outer : optical depth at the photosphere (end of validity of opt. thick approximation)
+* comp : Composition of the wind
+* mode : Either find the wind solutions (rootsolve) or use pre-solved roots to make the wind and produce plots (wind)
+* save : boolean for saving data and plots (0 will show plots in python interface)
+* img : image format to save with
+
+
+
 To make plots :
 
     python Plots.py
 
 Plots and tables are in the `results` subfolder, organized in directories describing the model:
-Composition_M/Msun_R/km_TauOuter_logPinner -> e.g `He_1.4_10_3_4/`
+Composition_M/Msun_R/km_log(yinner)_TauOuter-> e.g `He_1.4_10_8_3/`
 
 ## Example plots
 

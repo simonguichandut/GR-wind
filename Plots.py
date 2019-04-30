@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from numpy import log10, pi, array, linspace, logspace
 
 from wind_GR import MakeWind
-from output_data import write_to_file
+from IO import write_to_file
 
 img_format = '.png'
 save=1
@@ -14,8 +14,8 @@ kappa0 = 0.2
 GM = 6.6726e-8*2e33*1.4
 LEdd = 4*pi*c*GM/kappa0
 
-# composition,M/Msun,R(km),tau_outer,log10rho_inner
-setup = ['He', 1.4, 10, 3, 4]
+# composition,M/Msun,R(km),log(yinner),tau_outer
+setup = ['He', 1.4, 10, 8, 4]
 
 savedir = '_'.join([str(setup[i]) for i in range(len(setup))])
 path = 'results/' + savedir

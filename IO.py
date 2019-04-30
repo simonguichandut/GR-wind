@@ -1,4 +1,25 @@
+''' Input and Output '''
+
 import os
+
+def import_params():
+    with open('params.txt','r') as f:
+        next(f)
+        M = float(f.readline().split()[1])
+        R = float(f.readline().split()[1])
+        next(f)
+        next(f)
+        y_inner = float(f.readline().split()[1])
+        tau_out = float(f.readline().split()[1])
+        comp = f.readline().split()[1]
+        next(f)
+        next(f)
+        mode = f.readline().split()[1]
+        save = f.readline().split()[1]
+        img = f.readline().split()[1]
+        
+    return M,R,y_inner,tau_out,comp,mode,save,img
+
 
 def write_to_file(path,logMdot,data):
 
