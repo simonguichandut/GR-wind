@@ -6,6 +6,9 @@ from numpy import log10, pi, array, linspace, logspace
 from wind_GR import MakeWind
 from output_data import write_to_file
 
+img_format = '.png'
+save=1
+
 c = 2.99792458e10
 kappa0 = 0.2
 GM = 6.6726e-8*2e33*1.4
@@ -75,8 +78,9 @@ for logMdot, root in zip(logMdots, roots):
     R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = MakeWind(
         root, logMdot, mode='wind')
 
-    data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
-    write_to_file(path+'/data', logMdot, data)
+    if save:
+        data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
+        write_to_file(path+'/data', logMdot, data)
 
     if logMdot in (17, 17.5, 18, 18.5, 19):
         ax1.plot(log10(R), log10(Lstar/LEdd),
@@ -108,13 +112,12 @@ ax4.legend(title=r'log $\dot{M}$', loc=1)
 ax4.set_xlim([5.8, 9.2])
 ax4.set_ylim([5, 9])
 
-save=0
 if save:
-    fig1.savefig(path+'/plots/'+'Luminosity.pdf')
-    fig2.savefig(path+'/plots/'+'Temperature1.pdf')
-    fig3.savefig(path+'/plots/'+'Temperature2.pdf')
-    fig4.savefig(path+'/plots/'+'Velocity.pdf')
-    fig5.savefig(path+'/plots/'+'Pressure.pdf')
+    fig1.savefig(path+'/plots/'+'Luminosity'+img_format)
+    fig2.savefig(path+'/plots/'+'Temperature1'+img_format)
+    fig3.savefig(path+'/plots/'+'Temperature2'+img_format)
+    fig4.savefig(path+'/plots/'+'Velocity'+img_format)
+    fig5.savefig(path+'/plots/'+'Pressure'+img_format)
 
 
 # Base Luminosity
