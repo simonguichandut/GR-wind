@@ -111,6 +111,8 @@ ax3.set_ylim([5.6, 10])
 ax4.legend(title=r'log $\dot{M}$', loc=1)
 ax4.set_xlim([5.8, 9.2])
 ax4.set_ylim([5, 9])
+ax5.legend(title=r'log $\dot{M}$', loc=1)
+ax5.set_xlim([5.8, 9.2])
 
 if save:
     fig1.savefig(path+'/plots/'+'Luminosity'+img_format)

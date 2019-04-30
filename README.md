@@ -13,7 +13,7 @@ Uses a Newton-Raphson root finding approach to obtain the minimizing set of para
 
 To make plots :
 
-python Plots.py
+    python Plots.py
 
 Plots and tables are in the `results` subfolder, organized in directories describing the model:
 Composition_M/Msun_R/km_TauOuter_logPinner -> e.g `He_1.4_10_3_4/`
