@@ -1,6 +1,9 @@
 ''' Input and Output '''
 
 import os
+from numpy import log10
+
+
 
 def load_params():
     with open('params.txt','r') as f:
@@ -21,11 +24,66 @@ def load_params():
     return M,R,y_inner,tau_out,comp,mode,save,img
 
 
-def write_to_file(path,logMdot,data):
+def get_name():  # We give various files and directories the same name corresponding to the setup given in the parameter file
+
+    M,R,y_inner,tau_out,comp,_,_,_ = load_params()
+    name = '_'.join( [ comp , str(M) , ('%2d'%R) , ('%1d'%tau_out) , ('%1d'%log10(y_inner)) ] )
+    return name
+
+
+
+def save_root(logMDOT,root):
+
+    filename = get_name()
+    path = 'wind_solutions/sols_' + filename + '.txt'
+
+    if not os.path.exists(path):
+        f = open(path,'w+')
+        f.write('{:<7s} \t {:<10s} \t {:<10s}\n'.format(
+            'logMdot' , 'Edot/LEdd' , 'log10(Ts)'))
+    else:
+        f = open(path,'a')
+
+    f.write('{:<7.2f} \t {:<10f} \t {:<10f}\n'.format(
+            logMDOT,root[0],root[1]))
+
+
+def load_roots():
+
+    filename = get_name()
+    path = 'wind_solutions/sols_' + filename + '.txt'
+
+    logMDOTS = []
+    roots = []
+    with open(path, 'r') as f:
+        next(f)
+        for line in f:
+            stuff = line.split()
+            logMDOTS.append(float(stuff[0]))
+            roots.append([float(stuff[1]), float(stuff[2])])
+
+    return logMDOTS,roots
+
+
+
+def make_directories():
+
+    dirname = get_name()
+    path = 'results/' + dirname
+    if not os.path.exists(path):   # Assuming code is being run from main directory
+        os.mkdir(path)
+        os.mkdir(path+'/data')
+        os.mkdir(path+'/plots')
+
+
+
+def write_to_file(logMdot,data):
 
     # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau
 
-    filename = path + '/' + str(logMdot) + '.txt'
+    dirname = get_name()
+    path = 'results/' + dirname + '/data/'
+    filename = path + str(logMdot) + '.txt'
 
     with open(filename,'w') as f:
         # f.write('%s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s\n'%
@@ -39,4 +97,12 @@ def write_to_file(path,logMdot,data):
                 (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i]))
 
     
-# write_to_file(['He',1.4,10,3,4],18,1)
+
+
+def save_plots(figs,fignames,img):
+
+    dirname = get_name()
+    path = 'results/' + dirname + '/plots/'
+
+    for fig,figname in zip(figs,fignames):
+        fig.savefig(path+figname+img)

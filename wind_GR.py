@@ -1,3 +1,5 @@
+''' Main code to calculate winds '''
+
 from scipy.optimize import brentq
 from scipy.integrate import odeint
 from scipy.interpolate import interp1d
