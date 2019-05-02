@@ -4,7 +4,7 @@ R	12		[km]
 
 --- Wind ---
 y_inner 1e8		[g/cm2]
-tau_out 4		
+tau_out 3		
 comp	He		[He or ..]
 
 --- Code ---

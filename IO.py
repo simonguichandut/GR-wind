@@ -2,7 +2,7 @@
 
 import os
 
-def import_params():
+def load_params():
     with open('params.txt','r') as f:
         next(f)
         M = float(f.readline().split()[1])
