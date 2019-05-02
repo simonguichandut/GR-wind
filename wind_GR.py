@@ -229,8 +229,8 @@ def outerIntegration(Ts, returnResult=False):
     inic = [Ts, 2.0]
     r_outer = 50*rs
     r = np.linspace(rs, r_outer, 5000)
-    result = odeint(dr, inic, r, args=(False,), atol=1e-6,
-                    rtol=1e-6)  # contains T(r) and phi(r)
+    result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
+                    rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
 
     # odeint does not support stop conditions (should switch to scipy.integrate.ode, dopri5 integrator, with solout option)
     # For now, just cut the solution where the first NaN appears
@@ -303,8 +303,8 @@ def innerIntegration_phi(r, Ts):
     if verbose:
         print('\n**** Running innerIntegration PHI ****')
     inic = [Ts, 2.0]
-    result = odeint(dr, inic, r, args=(True,), atol=1e-6,
-                    rtol=1e-6)  # contains T(r) and phi(r)
+    result,info = odeint(dr, inic, r, args=(True,), atol=1e-6,
+                    rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
     return result
 
 
@@ -316,7 +316,8 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
         print('\n**** Running innerIntegration RHO ****')
 
     inic = [T95, r95] 
-    result = odeint(drho, inic, rho, atol=1e-6, rtol=1e-6) # contains T(rho) and r(rho)
+    result,info = odeint(drho, inic, rho, atol=1e-6, 
+                    rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
     flag = 0
 
     # Removing NaNs
@@ -427,10 +428,15 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         rho95 = rho_inner1[-1]
 
         # Second inner integration 
-        rho_inner2 = np.logspace(log10(rho95), log10(rhomax), 2000)
+        npoints = 2000
+        rho_inner2 = np.logspace(log10(rho95), log10(rhomax), npoints)
         result_inner2 = innerIntegration_rho(
             rho_inner2, r95, T95, returnResult=True)
         T_inner2, r_inner2 = result_inner2[:, 0], result_inner2[:, 1]
+        
+        if len(result_inner2)<npoints:
+            rho_inner2 = rho_inner2[:len(result_inner2)]
+
 
         # Attaching arrays for r,rho,T from surface to photosphere
         r_inner = np.append(np.flip(r_inner2, axis=0),
