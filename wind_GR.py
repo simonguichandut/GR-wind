@@ -1,8 +1,9 @@
 from scipy.optimize import brentq
 from scipy.integrate import odeint
+from scipy.interpolate import interp1d
 import numpy as np
 from numpy import linspace, sqrt, log10, array, pi
-from IO import *
+from IO import load_params
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
@@ -15,12 +16,16 @@ kappa0 = 0.2
 sigmarad = 0.25*arad*c
 
 # Parameters
-M, R, y_inner, tau_out, comp, mode, save, img = import_params()
+M, R, y_inner, tau_out, comp, mode, save, img = load_params()
 
 if comp == 'He':
     mu = 4.0/3.0
 GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
+g = GM/(R*1e5)**2
+P_inner = g*y_inner
+
+rhomax = 1e5
 
 # -------------------------------------------- Microphysics ----------------------------------------------------
 
@@ -28,32 +33,31 @@ def kappa(T):
     return kappa0/(1.0+(2.2e-9*T)**0.86)
 #    return kappa0/(1+(2.187e-9*T)**0.976) # From Juri Poutanen's paper
 
-
 def cs2(T):  # ideal gas sound speed  c_s^2
     return kB*T/(mu*mp)
 
+def electrons(rho,T):  # From Paczynski (1983) semi-analytic formula : ApJ 267 315
 
-def pressure(rho, T):
-
-    # {ideal gas + radiation pressure (eq 2c)}  PLUS(new)  electron pressure (non-degen + degen)
-
-    # From Paczynski (1983) ApJ 267 315
-    if comp == 'He':
-        Ye = 0.5
+    if comp == 'He': Ye = 0.5
     rY = rho*Ye
     pednr = 9.91e12 * (rho*Ye)**(5/3)     
     pedr = 1.231e15 * (rho*Ye)**(4/3)
     ped = 1/sqrt((1/pedr**2)+(1/pednr**2))
     pend = kB/mp*rY*T
+    pe = sqrt(ped**2 + pend**2) # pressure
+    
+    f = 5/3*(ped/pednr)**2 + 4/3*(ped/pedr)**2
+    Ue = pe/(f-1)               # energy density (erg cm-3)
+    
+    return pe,Ue
 
-    pe = 1e14*sqrt(ped**(2) + pend**2)
-
+def pressure(rho, T): # ideal gas + radiation pressure (eq 2c)}  PLUS(new)  electron pressure (non-degen + degen)
+    pe,_ = electrons(rho,T)
     return rho*cs2(T) + arad*T**4/3.0 + pe
 
-
-def internal_energy(rho, T):  # ideal gas + radiation
-    return 1.5*cs2(T)*rho + arad*T**4
-
+def internal_energy(rho, T):  # ideal gas + radiation + electrons 
+    _,Ue = electrons(rho,T)
+    return 1.5*cs2(T)*rho + arad*T**4 + Ue
 
 def Beta(rho, T):  # pressure ratio
     Pg = rho*cs2(T)
@@ -90,9 +94,9 @@ def C(Lstar, T, r, rho, v):  # eq 5c
 def uphi(phi, T, inwards):
     ''' phi should never drop below 2, but numerically
     it is sometimes just < 2, so in that case return Mach number 1 (divided by sqrt(A))
-This is using the GR version of the Joss & Melia change of variable phi in sonic units,
-where the difference between the velocity and sound speed at the critical point
-(vs=cs/sqrt(A)=0.999cs) is taken into account : phi = sqrt(A)*mach + 1/sqrt(A)/mach '''
+    This is using the GR version of the Joss & Melia change of variable phi in sonic units,
+    where the difference between the velocity and sound speed at the critical point
+    (vs=cs/sqrt(A)=0.999cs) is taken into account : phi = sqrt(A)*mach + 1/sqrt(A)/mach '''
 
     if phi < 2.0:
         u = 1.0*sqrt(cs2(T))/sqrt(A(T))
@@ -108,7 +112,7 @@ where the difference between the velocity and sound speed at the critical point
 def numerator(r, T, v, verbose=False):  # numerator of eq (4a)
 
     rho = Mdot/(4*pi*r**2*Y(r, v)*v)     # eq 1a
-    Lstar = Edot-Mdot*H(rho, T)*Y(r, v) + Mdot*c**2   # eq 1c
+    Lstar = Edot-Mdot*H(rho, T)*Y(r, v) + Mdot*c**2   # eq 1c, actually modified for the Mdot*c**2 (need to verify this)
 
     return gamma(v)**(-2) * (GM/r/Swz(r) * (A(T)-cs2(T)/c**2) - C(Lstar, T, r, rho, v) - 2*cs2(T))
 
@@ -139,8 +143,7 @@ def calculateVars(r, T, phi=0, rho=-1, inwards=False, return_all=False):
     # At the end rho will be given as an array, so we need these lines to allow this
     if isinstance(rho, (list, tuple, np.ndarray)):
         rho_given = 1
-        r, T, rho = array(r), array(T), array(
-            rho)  # to allow mathematical operations
+        r, T, rho = array(r), array(T), array(rho)  # to allow mathematical operations
     else:
         if rho < 0:
             rho_given = 0
@@ -162,7 +165,7 @@ def calculateVars(r, T, phi=0, rho=-1, inwards=False, return_all=False):
         mach = u/sqrt(cs2(T))
         phi = sqrt(A(T))*mach + 1/(sqrt(A(T))*mach)
 
-    Lstar = Edot-Mdot*H(rho, T)*Y(r, u) + Mdot*c**2
+    Lstar = Edot-Mdot*H(rho, T)*Y(r, u) + Mdot*c**2     # eq 1c, actually modified for the Mdot*c**2 (need to verify this)
     if not return_all:
         return u, rho, phi, Lstar
     else:
@@ -306,22 +309,54 @@ def innerIntegration_phi(r, Ts):
 
 
 def innerIntegration_rho(rho, r95, T95, returnResult=False):
-    ''' Integrates in from 0.95rs, using rho as the independent variable, until rho=10^4 being the surface '''
+    ''' Integrates in from 0.95rs, using rho as the independent variable, until rho=10^4 
+        We want to match the location of p=p_inner to the NS radius '''
+
     if verbose:
         print('\n**** Running innerIntegration RHO ****')
 
-    inic = [T95, r95]
-    # contains T(rho) and r(rho)
-    result = odeint(drho, inic, rho, atol=1e-6, rtol=1e-6)
+    inic = [T95, r95] 
+    result = odeint(drho, inic, rho, atol=1e-6, rtol=1e-6) # contains T(rho) and r(rho)
     flag = 0
 
+    # Removing NaNs
+    nanflag=0
     if True in np.isnan(result):
-        flag = 1
+        nanflag=1
         firstnan = min([np.argwhere(np.isnan(result[:, i]) == True)[0][0]
                         for i in (0, 1) if True in np.isnan(result[:, i])])
         result = result[:firstnan]
-        if verbose:
-            print('Surface density never reached!')
+        rho = rho[:firstnan]
+        print('Inner integration : NaNs reached after rho = %.2e'%rho[firstnan-1])
+
+    # Obtaining pressure
+    T, r = result[:, 0], result[:, 1]
+    _,_,_,_,_,_,_,P,_,_ = calculateVars(r, T, rho=rho, return_all=True)
+        
+
+    # Checking that we reached surface pressure
+    if P[-1]<P_inner:
+        flag = 1
+        if nanflag: print('Surface pressure never reached (NaNs before reaching p_inner)')
+        else:       print('Surface pressure never reached (max rho too small)')
+        print(P)
+
+    else: # linear interpolation to find the exact radius where P=P_inner
+        x = np.argmin(np.abs(P_inner-P))
+        a,b = (x,x+1) if P_inner-P[x] > 0 else (x-1,x)
+        func = interp1d([P[a],P[b]],[r[a],r[b]])
+        RNS = func(P_inner)
+        print(RNS)
+
+        result = result[:b]
+
+#        import matplotlib.pyplot as plt
+#        plt.figure()
+#        plt.loglog(r,P,'k.-')
+#        plt.loglog([r[0],r[-1]],[P_inner,P_inner],'k--')
+#        plt.loglog([r[a],r[b]],[P[a],P[b]],'ro')
+#        plt.loglog([RNS],[P_inner],'bo')
+
 
     if returnResult:
         return result
@@ -329,8 +364,7 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
         if flag:
             return +100
         else:
-            RNS = result[-1, 1]
-            return (RNS-1e6)/1e6       # Boundary error #2
+            return (RNS/1e5-R)/R       # Boundary error #2
 
 # ------------------------------------------------- Wind ---------------------------------------------------
 
@@ -368,7 +402,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
             _, rho95, _, _ = calculateVars(r95, T95, phi=phi95, inwards=True)
 
             # Second inner integration
-            rho_inner2 = np.logspace(log10(rho95), 4, 2000)
+            rho_inner2 = np.logspace(log10(rho95), log10(rhomax), 2000)
             error2 = innerIntegration_rho(rho_inner2, r95, T95)
 
             return error1, error2
@@ -391,8 +425,8 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
             r_inner1, T_inner1, phi=phi_inner1, inwards=True)
         rho95 = rho_inner1[-1]
 
-        # Second inner integration
-        rho_inner2 = np.logspace(log10(rho95), 4, 2000)
+        # Second inner integration 
+        rho_inner2 = np.logspace(log10(rho95), log10(rhomax), 2000)
         result_inner2 = innerIntegration_rho(
             rho_inner2, r95, T95, returnResult=True)
         T_inner2, r_inner2 = result_inner2[:, 0], result_inner2[:, 1]
