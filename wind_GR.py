@@ -16,13 +16,13 @@ kappa0 = 0.2
 sigmarad = 0.25*arad*c
 
 # Parameters
-M, R, y_inner, tau_out, comp, mode, save, img = load_params()
+M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
 if comp == 'He':
     mu = 4.0/3.0
 GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
-g = GM/(R*1e5)**2
+g = GM/(RNS*1e5)**2
 P_inner = g*y_inner
 
 rhomax = 1e5
@@ -346,17 +346,17 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
         x = np.argmin(np.abs(P_inner-P))
         a,b = (x,x+1) if P_inner-P[x] > 0 else (x-1,x)
         func = interp1d([P[a],P[b]],[r[a],r[b]])
-        RNS = func(P_inner)
+        RNS_calc = func(P_inner)
 
         result = result[:b]
 
-#        print(RNS)
+#        print(RNS_calc)
 #        import matplotlib.pyplot as plt
 #        plt.figure()
 #        plt.loglog(r,P,'k.-')
 #        plt.loglog([r[0],r[-1]],[P_inner,P_inner],'k--')
 #        plt.loglog([r[a],r[b]],[P[a],P[b]],'ro')
-#        plt.loglog([RNS],[P_inner],'bo')
+#        plt.loglog([RNS_calc],[P_inner],'bo')
 
 
     if returnResult:
@@ -365,7 +365,7 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
         if flag:
             return +100
         else:
-            return (RNS/1e5-R)/R       # Boundary error #2
+            return (RNS_calc/1e5-RNS)/RNS       # Boundary error #2
 
 # ------------------------------------------------- Wind ---------------------------------------------------
 
