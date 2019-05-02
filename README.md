@@ -32,6 +32,6 @@ Composition_M/Msun_R/km_log(yinner)_TauOuter-> e.g `He_1.4_10_8_3/`
 
 ## Example plots
 
-![](/results/He_1.4_10_3_4/plots/Luminosity.png)
-![](/results/He_1.4_10_3_4/plots/Temperature1.png)
-![](/results/He_1.4_10_3_4/plots/Velocity.png)
+![](/results/He_1.4_10_3_4_OLD/plots/Luminosity.png)
+![](/results/He_1.4_10_3_4_OLD/plots/Temperature1.png)
+![](/results/He_1.4_10_3_4_OLD/plots/Velocity.png)

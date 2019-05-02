@@ -1,39 +1,35 @@
+''' Plotting various quantities from wind solutions ''' 
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import log10, pi, array, linspace, logspace
 
 from wind_GR import MakeWind
-from IO import write_to_file
+from IO import *
 
-img_format = '.png'
-save=1
+# Parameters
+M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
+# Constants
 c = 2.99792458e10
 kappa0 = 0.2
-GM = 6.6726e-8*2e33*1.4
+GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
+g = GM/(RNS*1e5)**2
 
-# composition,M/Msun,R(km),log(yinner),tau_outer
-setup = ['He', 1.4, 10, 8, 4]
-
-savedir = '_'.join([str(setup[i]) for i in range(len(setup))])
-path = 'results/' + savedir
-if not os.path.exists(path):   # Assuming code is being run from main directory
-    os.mkdir(path)
-    os.mkdir(path+'/data')
-    os.mkdir(path+'/plots')
+# Make directories for data and plots
+make_directories()
 
 # Import Winds
-logMdots = []
-roots = []
-with open('wind_solutions/sols_He_1.4_10_3.txt', 'r') as f:
-    next(f)
-    next(f)
-    for line in f:
-        stuff = line.split()
-        logMdots.append(float(stuff[0]))
-        roots.append([float(stuff[1]), float(stuff[2])])
+logMDOTS,roots = load_roots()
+
+
+
+
+
+
+########## PLOTS ###########
 
 # Radius-Luminosity (fig. 2)
 fig1, ax1 = plt.subplots(1, 1)
@@ -69,7 +65,7 @@ Lb = []
 Lbs = []
 
 i = 0
-for logMdot, root in zip(logMdots, roots):
+for logMdot, root in zip(logMDOTS, roots):
 
     print(logMdot)
     global Mdot, verbose
@@ -80,7 +76,7 @@ for logMdot, root in zip(logMdots, roots):
 
     if save:
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
-        write_to_file(path+'/data', logMdot, data)
+        write_to_file(logMdot, data)
 
     if logMdot in (17, 17.5, 18, 18.5, 19):
         ax1.plot(log10(R), log10(Lstar/LEdd),
@@ -114,26 +110,22 @@ ax4.set_ylim([5, 9])
 ax5.legend(title=r'log $\dot{M}$', loc=1)
 ax5.set_xlim([5.8, 9.2])
 
-if save:
-    fig1.savefig(path+'/plots/'+'Luminosity'+img_format)
-    fig2.savefig(path+'/plots/'+'Temperature1'+img_format)
-    fig3.savefig(path+'/plots/'+'Temperature2'+img_format)
-    fig4.savefig(path+'/plots/'+'Velocity'+img_format)
-    fig5.savefig(path+'/plots/'+'Pressure'+img_format)
 
+if save: 
+    save_plots([fig1,fig2,fig3,fig4,fig5],['Luminosity','Temperature1','Temperature2','Velocity','Pressure'],img)
 
 # Base Luminosity
 Lb, Lbs = array(Lb), array(Lbs)
-Mdots = 10**array(logMdots)
+Mdots = 10**array(logMDOTS)
 
 fig6, (ax61, ax62) = plt.subplots(1, 2, figsize=(15, 8))
-ax61.plot(logMdots, Lb/LEdd, 'ro-', label=r'Local Luminosity')
-ax61.plot(logMdots, Lbs/LEdd, 'bo-', label=r'Luminosity at $\infty$')
-ax61.plot([logMdots[0], logMdots[-1]], [1, 1], 'k--')
+ax61.plot(logMDOTS, Lb/LEdd, 'ro-', label=r'Local Luminosity')
+ax61.plot(logMDOTS, Lbs/LEdd, 'bo-', label=r'Luminosity at $\infty$')
+ax61.plot([logMDOTS[0], logMDOTS[-1]], [1, 1], 'k--')
 ax61.set_xlabel(r'log $\dot{M}$', fontsize=14)
 ax61.set_ylabel(r'$L_b/L_{Edd}$', fontsize=14)
 ax61.legend()
-ax62.plot(logMdots, Lb/Lbs, 'ko-')
+ax62.plot(logMDOTS, Lb/Lbs, 'ko-')
 ax62.set_xlabel(r'log $\dot{M}$', fontsize=14)
 ax62.set_ylabel(r'$Local/Infinity$', fontsize=14)
 ax62.set_ylim([1, 2])
@@ -141,9 +133,9 @@ ax62.set_ylim([1, 2])
 
 L_error, Lstar_error = (Lb-LEdd)/(GM*Mdots/1e6), (Lbs-LEdd)/(GM*Mdots/1e6)
 fig7, ax7 = plt.subplots(1, 1)
-ax7.plot(logMdots, L_error, 'ro-', label=r'Comoving Luminosity')
-ax7.plot(logMdots, Lstar_error, 'bo-', label=r'Luminosity at $\infty$')
-ax7.plot([logMdots[0], logMdots[-1]], [1, 1], 'k--')
+ax7.plot(logMDOTS, L_error, 'ro-', label=r'Comoving Luminosity')
+ax7.plot(logMDOTS, Lstar_error, 'bo-', label=r'Luminosity at $\infty$')
+ax7.plot([logMDOTS[0], logMDOTS[-1]], [1, 1], 'k--')
 ax7.set_xlabel(r'log $\dot{M}$', fontsize=14)
 ax7.set_ylabel(r'$(L_b-L_{Edd})/(GM\dot{M}/R)$', fontsize=14)
 ax7.legend()
