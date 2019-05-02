@@ -327,7 +327,8 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
                         for i in (0, 1) if True in np.isnan(result[:, i])])
         result = result[:firstnan]
         rho = rho[:firstnan]
-        print('Inner integration : NaNs reached after rho = %.2e'%rho[firstnan-1])
+        if verbose:
+            print('Inner integration : NaNs reached after rho = %.2e'%rho[firstnan-1])
 
     # Obtaining pressure
     T, r = result[:, 0], result[:, 1]
@@ -337,19 +338,19 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
     # Checking that we reached surface pressure
     if P[-1]<P_inner:
         flag = 1
-        if nanflag: print('Surface pressure never reached (NaNs before reaching p_inner)')
-        else:       print('Surface pressure never reached (max rho too small)')
-        print(P)
+        if verbose:
+            if nanflag: print('Surface pressure never reached (NaNs before reaching p_inner)')
+            else:       print('Surface pressure never reached (max rho too small)')
 
     else: # linear interpolation to find the exact radius where P=P_inner
         x = np.argmin(np.abs(P_inner-P))
         a,b = (x,x+1) if P_inner-P[x] > 0 else (x-1,x)
         func = interp1d([P[a],P[b]],[r[a],r[b]])
         RNS = func(P_inner)
-        print(RNS)
 
         result = result[:b]
 
+#        print(RNS)
 #        import matplotlib.pyplot as plt
 #        plt.figure()
 #        plt.loglog(r,P,'k.-')
