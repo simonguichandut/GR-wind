@@ -39,7 +39,7 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
     diff = 2*tol
     counter,f0,f1 = 0,func(z0,*args),func(z1,*args)
     Jold = [[0.00001,0.00001],[0.00001,-0.00001]]
-    while (diff>tol or norm(f1)>tol) and (counter<100):
+    while (diff>tol or norm(f1)>tol) and (counter<50):
 
         J = Jacobian(func,z0,z1,*args)
         if counter != 0 and (True in np.isnan(J) or np.linalg.det(J)==0.0):
@@ -68,7 +68,7 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
         z0,f0 = z1[:],f1[:]
         z1,f1 = znew[:],fnew[:]
         Jold = J
-        print(counter+1,' : update [Edot,Ts]=',z1,'\n\n')
+        print(counter+1,' : update [Edot,Ts]=',z1,'\n\t errors=',fnew,'\n\n')
         
         diff = abs(norm(z1)-norm(z0))  # difference between two iterations
         counter += 1
@@ -128,7 +128,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
     
 from IO import *
 
-logMDOTS = np.arange(17,19,0.1)
+logMDOTS = np.arange(19,17.3,-0.1)
 roots = []
 problems = []
 
