@@ -106,42 +106,34 @@ def save_plots(figs,fignames,img):
 
 
 
-
-
-
-logMDOTS = [18.0, 18.25, 18.5, 18.75, 19.0, 18.5, 19.0, 18.0, 17.3, 19.0, 18.8, 18.7, 18.6, 18.5, 18.4, 18.3, 18.2, 18.1, 18.0]
-roots = [[1.025, 7.35], [1.02, 7.3], [1.02, 7.2], [1.02, 7.1], [1.02, 6.96], [1.025087, 7.192502], [1.020776, 6.959367], [1.024887, 7.321983], [1.0177, 7.213938], [1.020776, 6.959367], [1.022514, 7.053857], [1.023451, 7.102189], [1.024345, 7.149243], [1.025088, 7.192513], [1.025601, 7.230439], [1.02585, 7.262548], [1.025816, 7.288609], [1.025484, 7.308488], [1.024887, 7.321963]]
-
-
 def clean_rootfile():
 
     # Find duplicates, and remove all but the latest root (assuming the last one is the correct one)
     # Sort from lowest to biggest
     from numpy import unique,sort,argwhere
 
-    # logMDOTS,roots = load_roots()
-
+    logMDOTS,roots = load_roots()
     new_logMDOTS = sort(unique(logMDOTS))
 
-    v = []
-    for x in new_logMDOTS:
-        duplicates= argwhere(logMDOTS==x)
-        v.append(duplicates[-1][0]) # keeping the last one
+    if list(new_logMDOTS) != list(logMDOTS):
 
-    new_roots = []
-    for i in v:
-        new_roots.append(roots[i])
-        
-    o = input('Old file will be overwritten. Proceed? (0 or 1')
-    if o:
-        filename = get_name()
-        path = 'wind_solutions/sols_' + filename + '.txt'
-        os.remove(path)
-        
-        for x,y in zip(new_logMDOTS,new_roots): 
-            save_root(x,y)
-        
+        v = []
+        for x in new_logMDOTS:
+            duplicates= argwhere(logMDOTS==x)
+            v.append(duplicates[-1][0]) # keeping the last one
 
+        new_roots = []
+        for i in v:
+            new_roots.append(roots[i])
+            
+        o = input('Old file will be overwritten. Proceed? (0 or 1) ')
+        if o:
+            filename = get_name()
+            path = 'wind_solutions/sols_' + filename + '.txt'
+            os.remove(path)
 
+            for x,y in zip(new_logMDOTS,new_roots): 
+                save_root(x,y)
+            
 
 # clean_rootfile()
