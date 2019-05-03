@@ -39,7 +39,8 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
     diff = 2*tol
     counter,f0,f1 = 0,func(z0,*args),func(z1,*args)
     Jold = [[0.00001,0.00001],[0.00001,-0.00001]]
-    while (diff>tol or norm(f1)>tol) and (counter<50):
+    nitermax = 50
+    while (diff>tol or norm(f1)>tol):
 
         J = Jacobian(func,z0,z1,*args)
         if counter != 0 and (True in np.isnan(J) or np.linalg.det(J)==0.0):
@@ -72,6 +73,11 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
         
         diff = abs(norm(z1)-norm(z0))  # difference between two iterations
         counter += 1
+        
+        
+        if counter>nitermax:
+            sys.exit('Not able to find a root after %d iterations, exiting..'%nitermax)
+            
         
     return z1
 
@@ -123,25 +129,25 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):
 # Test 
 #RootFinder(18)
     
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning) 
-    
-from IO import *
-
-logMDOTS = np.arange(19,17.3,-0.1)
-roots = []
-problems = []
-
-for logMDOT in logMDOTS:
-    try:
-        root = RootFinder(logMDOT)
-        roots.append(root)
-        save_root(logMDOT,root)
-    except:
-        problems.append(logMDOT)
-        
-print('There were problems for these values:')
-print(problems)
+#import warnings
+#warnings.filterwarnings("ignore", category=RuntimeWarning) 
+#    
+#from IO import save_root
+#
+#logMDOTS = np.arange(19,17.3,-0.1)
+#roots = []
+#problems = []
+#
+#for logMDOT in logMDOTS:
+#    try:
+#        root = RootFinder(logMDOT)
+#        roots.append(root)
+#        save_root(logMDOT,root)
+#    except:
+#        problems.append(logMDOT)
+#        
+#print('There were problems for these values:')
+#print(problems)
         
 
         

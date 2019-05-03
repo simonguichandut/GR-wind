@@ -22,11 +22,8 @@ g = GM/(RNS*1e5)**2
 make_directories()
 
 # Import Winds
+clean_rootfile()
 logMDOTS,roots = load_roots()
-
-
-
-
 
 
 ########## PLOTS ###########
@@ -56,7 +53,7 @@ fig5, ax5 = plt.subplots(1, 1)
 ax5.set_xlabel(r'log $r$ (cm)', fontsize=13)
 ax5.set_ylabel(r'log $P$ (g cm$^{-1}$ s$^{-2}$)', fontsize=13)
 
-colors = ['r', 'b', 'm', 'g', 'o']
+colors = ['r', 'b', 'm', 'g', 'c']
 
 L_error = []
 Lstar_error = []
@@ -78,7 +75,7 @@ for logMdot, root in zip(logMDOTS, roots):
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
         write_to_file(logMdot, data)
 
-    if logMdot in (17, 17.5, 18, 18.5, 19):
+    if logMdot in (17, 17.5, 18, 18.5, 19 ,18.2,18.7):
         ax1.plot(log10(R), log10(Lstar/LEdd),
                  c=colors[i], lw=0.6, label=('%.1f' % (log10(Mdot))))
         ax2.plot(log10(R), log10(T), c=colors[i], lw=0.6, label=(
