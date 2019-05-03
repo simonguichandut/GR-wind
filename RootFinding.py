@@ -76,19 +76,19 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
     return z1
 
 
-def RootFinder(logMdot,logTs0=7.3,box='on',Verbose=0):  
+def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):  
     
     ''' Finds the error-minimizing set of parameters (Edot,Ts) for a wind 
         with a given Mdot '''
         
     print('Starting root finding algorithm for logMdot = %.2f'%logMdot)
         
-    Edotmin = 1.01 # in units of LEdd. There are likely no solutions with a lower Edot
+    Edotmin = 1.001 # in units of LEdd. There are likely no solutions with a lower Edot
     
     # But this Edot might not converge
     err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
     while 100 in err:
-        Edotmin += 0.001
+        Edotmin += 0.01
         print('\nEdotmin: ',Edotmin)
         err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
         
@@ -123,3 +123,25 @@ def RootFinder(logMdot,logTs0=7.3,box='on',Verbose=0):
 # Test 
 #RootFinder(18)
     
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning) 
+    
+from IO import *
+
+logMDOTS = np.arange(17,19,0.1)
+roots = []
+problems = []
+
+for logMDOT in logMDOTS:
+    try:
+        root = RootFinder(logMDOT)
+        roots.append(root)
+        save_root(logMDOT,root)
+    except:
+        problems.append(logMDOT)
+        
+print('There were problems for these values:')
+print(problems)
+        
+
+        
