@@ -124,7 +124,7 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):
 
 
 
-
+RootFinder(18.9)
 
 # Test 
 #RootFinder(18)

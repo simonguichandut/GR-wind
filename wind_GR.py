@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 from numpy import linspace, sqrt, log10, array, pi
 from IO import load_params
+import os
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
@@ -188,12 +189,33 @@ def dr(inic, r, inwards):
     u, rho, phi, Lstar = calculateVars(r, T, phi=phi, inwards=inwards)
     mach = u/sqrt(cs2(T))
 
-    if r == rs or phi < 2:
-        dlnT_dlnr = -1  # avoid divergence at sonic point
-    else:               # (eq. 4a&b)
-        dlnv_dlnr = numerator(r, T, u) / (cs2(T) - u**2*A(T))
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * \
-            GM/c**2/r - gamma(u)**2*(u/c)**2*dlnv_dlnr
+    ## OPTION 1
+    # if r == rs or phi < 2:
+    #     dlnT_dlnr = -1  # avoid divergence at sonic point
+    # else:               # (eq. 4a&b)
+    #     dlnv_dlnr = numerator(r, T, u) / (cs2(T) - u**2*A(T))
+    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r \
+    #          - gamma(u)**2*(u/c)**2*dlnv_dlnr
+
+    ## OPTION 2
+    # if r == rs or phi < 2:
+    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
+    # else:               # (eq. 4a&b)
+    #     dlnv_dlnr = numerator(r, T, u) / (cs2(T) - u**2*A(T))
+    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r \
+    #          - gamma(u)**2*(u/c)**2*dlnv_dlnr
+
+
+    # OPTION 3
+    dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
+
+
+    # Note : Options 1&2 both run into numerical problems because dlnv_dlnr goes crazy not just at the
+    # sonic point but also in its vicinity.  It therefore completely dominates the dlnT_dlnr term
+    # when in reality it should be negligible because of the (u/c)**2 term.  Option 3 is the best to 
+    # avoid numerical problems, and no significant loss in precision or accuracy is made by ignoring
+    # the dlnv_dlnr term.
+    
 
     cs, rootA = sqrt(cs2(T)), sqrt(A(T))
     mach = u/cs
@@ -456,4 +478,10 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = calculateVars(
             R, T, rho=Rho, return_all=True)
 
-        return R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau
+        return R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts
+
+
+
+# err1,err2=MakeWind([1.02,7.1],18.9)
+# err1,err2=MakeWind([1.025088,7.192513],18.5)
+# print(err1,err2)
