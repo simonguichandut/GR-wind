@@ -55,12 +55,6 @@ ax5.set_ylabel(r'log $P$ (g cm$^{-1}$ s$^{-2}$)', fontsize=13)
 
 colors = ['r', 'b', 'm', 'g', 'c']
 
-L_error = []
-Lstar_error = []
-Lstar_error2 = []
-Lb = []
-Lbs = []
-
 i = 0
 for logMdot, root in zip(logMDOTS, roots):
 
@@ -68,7 +62,7 @@ for logMdot, root in zip(logMDOTS, roots):
     global Mdot, verbose
     Mdot, verbose = 10**logMdot, 0
 
-    R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = MakeWind(
+    R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(
         root, logMdot, mode='wind')
 
     if save:
@@ -88,10 +82,6 @@ for logMdot, root in zip(logMDOTS, roots):
             '%.1f' % (log10(Mdot))))
         i += 1
 
-    Lb.append(L[0])
-    Lbs.append(Lstar[0])
-
-
 ax1.legend(title=r'log $\dot{M}$', loc=1)
 ax1.set_xlim([5.8, 9.2])
 ax1.set_ylim([-0.1, 0.9])
@@ -107,34 +97,7 @@ ax4.set_ylim([5, 9])
 ax5.legend(title=r'log $\dot{M}$', loc=1)
 ax5.set_xlim([5.8, 9.2])
 
-
 if save: 
     save_plots([fig1,fig2,fig3,fig4,fig5],['Luminosity','Temperature1','Temperature2','Velocity','Pressure'],img)
-
-# Base Luminosity
-Lb, Lbs = array(Lb), array(Lbs)
-Mdots = 10**array(logMDOTS)
-
-fig6, (ax61, ax62) = plt.subplots(1, 2, figsize=(15, 8))
-ax61.plot(logMDOTS, Lb/LEdd, 'ro-', label=r'Local Luminosity')
-ax61.plot(logMDOTS, Lbs/LEdd, 'bo-', label=r'Luminosity at $\infty$')
-ax61.plot([logMDOTS[0], logMDOTS[-1]], [1, 1], 'k--')
-ax61.set_xlabel(r'log $\dot{M}$', fontsize=14)
-ax61.set_ylabel(r'$L_b/L_{Edd}$', fontsize=14)
-ax61.legend()
-ax62.plot(logMDOTS, Lb/Lbs, 'ko-')
-ax62.set_xlabel(r'log $\dot{M}$', fontsize=14)
-ax62.set_ylabel(r'$Local/Infinity$', fontsize=14)
-ax62.set_ylim([1, 2])
-
-
-L_error, Lstar_error = (Lb-LEdd)/(GM*Mdots/1e6), (Lbs-LEdd)/(GM*Mdots/1e6)
-fig7, ax7 = plt.subplots(1, 1)
-ax7.plot(logMDOTS, L_error, 'ro-', label=r'Comoving Luminosity')
-ax7.plot(logMDOTS, Lstar_error, 'bo-', label=r'Luminosity at $\infty$')
-ax7.plot([logMDOTS[0], logMDOTS[-1]], [1, 1], 'k--')
-ax7.set_xlabel(r'log $\dot{M}$', fontsize=14)
-ax7.set_ylabel(r'$(L_b-L_{Edd})/(GM\dot{M}/R)$', fontsize=14)
-ax7.legend()
-
-# plt.show()
+else:
+    plt.show()
