@@ -131,33 +131,33 @@ from IO import save_root
 
 
 ## A single root
-#logMdot = 17.95
-#logTs0 = 7.5
-#root=RootFinder(logMdot,logTs0=logTs0)
-#save_root(logMdot,root)
-#    
+logMdot = 17.9
+logTs0 = 7.5
+root=RootFinder(logMdot,logTs0=logTs0)
+save_root(logMdot,root)
+    
 
 ## Mutliple roots
 
 #logMDOTS = np.arange(19,17.3,-0.1)
 #logMDOTS = np.arange(18.05,19,0.1)
-logMDOTS = np.arange(19,17.95,-0.05)
-roots = []
-problems = []
-
-for logMDOT in logMDOTS:
-    
-    logTs0=7.4 if logMDOT<18.6 else 7.1
-        
-    try:
-        root = RootFinder(logMDOT,logTs0=logTs0)
-        roots.append(root)
-        save_root(logMDOT,root)
-    except:
-        problems.append(logMDOT)
-        
-print('There were problems for these values:')
-print(problems)
+#logMDOTS = np.arange(19,17.95,-0.05)
+#roots = []
+#problems = []
+#
+#for logMDOT in logMDOTS:
+#    
+#    logTs0=7.4 if logMDOT<18.6 else 7.1
+#        
+#    try:
+#        root = RootFinder(logMDOT,logTs0=logTs0)
+#        roots.append(root)
+#        save_root(logMDOT,root)
+#    except:
+#        problems.append(logMDOT)
+#        
+#print('There were problems for these values:')
+#print(problems)
         
 
         

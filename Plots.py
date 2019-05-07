@@ -36,7 +36,8 @@ fig1, ax1 = plt.subplots(1, 1)
 # ax1.set_xlabel(r'log $r$ (cm)', fontsize=14)
 # ax1.set_ylabel(r'log $L^*/L_{Edd}$', fontsize=14)
 ax1.set_xlabel(r'$r$ (cm)', fontsize=14)
-ax1.set_ylabel(r'$L^*/L_{Edd}$', fontsize=14)
+# ax1.set_ylabel(r'$L^*/L_{Edd}$', fontsize=14)
+ax1.set_ylabel(r'$L/L_{Edd}$', fontsize=14)     # Not writing L* for clarity (but keep in mind this is still lum at inf)
 
 # Radius-Temperature (fig. 4)
 fig2, ax2 = plt.subplots(1, 1)
@@ -66,7 +67,7 @@ fig5, ax5 = plt.subplots(1, 1)
 ax5.set_xlabel(r'$r$ (cm)', fontsize=14)
 ax5.set_ylabel(r'$P$ (g cm$^{-1}$ s$^{-2}$)', fontsize=14)
 
-colors = ['r', 'b', 'm', 'g', 'c']
+colors = ['r', 'b', 'g', 'k', 'm']
 
 i = 0
 for logMdot, root in zip(logMDOTS, roots):
@@ -82,27 +83,27 @@ for logMdot, root in zip(logMDOTS, roots):
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
         write_to_file(logMdot, data)
 
-    if logMdot in (17, 17.5, 18, 18.5, 19 ,18.2,18.7):
+    if logMdot in (17, 17.5, 18, 18.5,18.25,18.75):
         # ax1.plot(log10(R), log10(Lstar/LEdd),
-        #          c=colors[i], lw=0.6, label=('%.1f' % (log10(Mdot))))
-        # ax2.plot(log10(R), log10(T), c=colors[i], lw=0.6, label=(
-        #     '%.1f' % (log10(Mdot))))
+        #          c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
+        # ax2.plot(log10(R), log10(T), c=colors[i], lw=0.8, label=(
+        #     '%.2f' % (log10(Mdot))))
         # ax3.plot(log10(Rho), log10(T),
-        #          c=colors[i], lw=0.6, label=('%.1f' % (log10(Mdot))))
-        # ax4.plot(log10(R), log10(u), c=colors[i], lw=0.6, label=(
-        #     '%.1f' % (log10(Mdot))))
-        # ax5.plot(log10(R), log10(P), c=colors[i], lw=0.6, label=(
-        #     '%.1f' % (log10(Mdot))))
+        #          c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
+        # ax4.plot(log10(R), log10(u), c=colors[i], lw=0.8, label=(
+        #     '%.2f' % (log10(Mdot))))
+        # ax5.plot(log10(R), log10(P), c=colors[i], lw=0.8, label=(
+        #     '%.2f' % (log10(Mdot))))
         ax1.semilogx(R, Lstar/LEdd,
-                 c=colors[i], lw=0.6, label=('%.1f' % (log10(Mdot))))
-        ax2.loglog(R, T, c=colors[i], lw=0.6, label=(
-            '%.1f' % (log10(Mdot))))
+                 c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
+        ax2.loglog(R, T, c=colors[i], lw=0.8, label=(
+            '%.2f' % (log10(Mdot))))
         ax3.loglog(Rho, T,
-                 c=colors[i], lw=0.6, label=('%.1f' % (log10(Mdot))))
-        ax4.loglog(R, u, c=colors[i], lw=0.6, label=(
-            '%.1f' % (log10(Mdot))))
-        ax5.loglog(R, P, c=colors[i], lw=0.6, label=(
-            '%.1f' % (log10(Mdot))))
+                 c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
+        ax4.loglog(R, u, c=colors[i], lw=0.8, label=(
+            '%.2f' % (log10(Mdot))))
+        ax5.loglog(R, P, c=colors[i], lw=0.8, label=(
+            '%.2f' % (log10(Mdot))))
 
         i += 1
 
@@ -113,10 +114,10 @@ ax1.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
 ax2.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
 # ax2.set_xlim([5.8, 9.2])
 # ax2.set_ylim([5.6, 10])
-ax3.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
+ax3.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
 # ax3.set_xlim([-9, 8])
 # ax3.set_ylim([5.6, 10])
-ax4.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
+ax4.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
 # ax4.set_xlim([5.8, 9.2])
 # ax4.set_ylim([5, 9])
 ax5.legend(title=r'log $\dot{M}$ (g/s)', loc=1)

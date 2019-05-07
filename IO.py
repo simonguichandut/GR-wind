@@ -126,7 +126,7 @@ def clean_rootfile():
         for i in v:
             new_roots.append(roots[i])
             
-        o = input('Old file will be overwritten. Proceed? (0 or 1) ')
+        o = input('Roots file will be overwritten. Proceed? (0 or 1) ')
         if o:
             filename = get_name()
             path = 'wind_solutions/sols_' + filename + '.txt'
