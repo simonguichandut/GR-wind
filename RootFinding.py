@@ -124,30 +124,40 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):
 
 
 
-RootFinder(18.9)
 
-# Test 
-#RootFinder(18)
-    
-#import warnings
-#warnings.filterwarnings("ignore", category=RuntimeWarning) 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning) 
+from IO import save_root
+
+
+## A single root
+#logMdot = 17.95
+#logTs0 = 7.5
+#root=RootFinder(logMdot,logTs0=logTs0)
+#save_root(logMdot,root)
 #    
-#from IO import save_root
-#
+
+## Mutliple roots
+
 #logMDOTS = np.arange(19,17.3,-0.1)
-#roots = []
-#problems = []
-#
-#for logMDOT in logMDOTS:
-#    try:
-#        root = RootFinder(logMDOT)
-#        roots.append(root)
-#        save_root(logMDOT,root)
-#    except:
-#        problems.append(logMDOT)
-#        
-#print('There were problems for these values:')
-#print(problems)
+#logMDOTS = np.arange(18.05,19,0.1)
+logMDOTS = np.arange(19,17.95,-0.05)
+roots = []
+problems = []
+
+for logMDOT in logMDOTS:
+    
+    logTs0=7.4 if logMDOT<18.6 else 7.1
+        
+    try:
+        root = RootFinder(logMDOT,logTs0=logTs0)
+        roots.append(root)
+        save_root(logMDOT,root)
+    except:
+        problems.append(logMDOT)
+        
+print('There were problems for these values:')
+print(problems)
         
 
         

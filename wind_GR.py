@@ -25,7 +25,9 @@ if comp == 'He':
     mu = 4.0/3.0
 GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
-g = GM/(RNS*1e5)**2
+
+ZZ = (1-2*GM/(c**2*RNS*1e5))**(-1/2) # redshift
+g = GM/(RNS*1e5)**2 * ZZ
 P_inner = g*y_inner
 
 rhomax = 1e5
@@ -215,7 +217,7 @@ def dr(inic, r, inwards):
     # when in reality it should be negligible because of the (u/c)**2 term.  Option 3 is the best to 
     # avoid numerical problems, and no significant loss in precision or accuracy is made by ignoring
     # the dlnv_dlnr term.
-    
+
 
     cs, rootA = sqrt(cs2(T)), sqrt(A(T))
     mach = u/cs

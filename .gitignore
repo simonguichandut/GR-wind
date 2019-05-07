@@ -15,3 +15,7 @@ temp.py
 /misc_plots
 
 analysis.py
+
+*.mp4
+
+light_curve/
