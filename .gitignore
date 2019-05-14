@@ -19,3 +19,5 @@ analysis.py
 *.mp4
 
 light_curve/
+
+opacity.py
