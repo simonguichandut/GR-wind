@@ -230,15 +230,22 @@ def dr(inic, r, inwards):
 
 
 def drho(inic, rho):
-    ''' Calculates the derivatives of T and r with rho as the independnt variable '''
+    ''' Calculates the derivatives of T and r with rho as the independent variable '''
 
     T, r = inic[:2]
     u, rho, phi, Lstar = calculateVars(r, T, rho=rho)
 
-    dT_dr, _ = dr([T, phi], r, inwards=True)
-    dlnr_dlnrho = (cs2(T)-A(r)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2)))
-                                        * A(r) + C(Lstar, T, r, rho, u))  # eq 6
+    # Using phi causes problems
+    # print('phi=',phi)
+    # dT_dr, _ = dr([T, phi], r, inwards=True)
 
+    # Not using phi
+    dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
+    dT_dr = T/r * dlnT_dlnr
+
+    # eq 6 from Paczynski
+    dlnr_dlnrho = (cs2(T)-A(r)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A(r) + C(Lstar, T, r, rho, u)) 
+                                         
     dr_drho = r/rho * dlnr_dlnrho
     dT_drho = dT_dr * dr_drho
 

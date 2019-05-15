@@ -3,7 +3,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy import log10, pi, array, linspace, logspace
+from numpy import log10, pi, array, linspace, logspace, floor
 
 from wind_GR import MakeWind
 from IO import *
@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 # Parameters
 M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
-# Constants
+# constants
 c = 2.99792458e10
 kappa0 = 0.2
 GM = 6.6726e-8*2e33*M
@@ -83,27 +83,31 @@ for logMdot, root in zip(logMDOTS, roots):
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
         write_to_file(logMdot, data)
 
-    if logMdot in (17, 17.5, 18, 18.5,18.25,18.75):
+    if logMdot in (17.25, 17.5, 17.75, 18, 18.25 , 18.5, 18.75, 19):
+
+        c = colors[int(np.floor(i/2)-1)]
+        ls = '-' if i%2==0 else '--'
+
         # ax1.plot(log10(R), log10(Lstar/LEdd),
-        #          c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
-        # ax2.plot(log10(R), log10(T), c=colors[i], lw=0.8, label=(
+        #          color=c lw=0.8, label=('%.2f' % (log10(Mdot))))
+        # ax2.plot(log10(R), log10(T), color=c lw=0.8, label=(
         #     '%.2f' % (log10(Mdot))))
         # ax3.plot(log10(Rho), log10(T),
-        #          c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
-        # ax4.plot(log10(R), log10(u), c=colors[i], lw=0.8, label=(
+        #          color=c lw=0.8, label=('%.2f' % (log10(Mdot))))
+        # ax4.plot(log10(R), log10(u), color=c lw=0.8, label=(
         #     '%.2f' % (log10(Mdot))))
-        # ax5.plot(log10(R), log10(P), c=colors[i], lw=0.8, label=(
+        # ax5.plot(log10(R), log10(P), color=c lw=0.8, label=(
         #     '%.2f' % (log10(Mdot))))
         ax1.semilogx(R, Lstar/LEdd,
-                 c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
-        ax2.loglog(R, T, c=colors[i], lw=0.8, label=(
-            '%.2f' % (log10(Mdot))))
+                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        ax2.loglog(R, T, 
+                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         ax3.loglog(Rho, T,
-                 c=colors[i], lw=0.8, label=('%.2f' % (log10(Mdot))))
-        ax4.loglog(R, u, c=colors[i], lw=0.8, label=(
-            '%.2f' % (log10(Mdot))))
-        ax5.loglog(R, P, c=colors[i], lw=0.8, label=(
-            '%.2f' % (log10(Mdot))))
+                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        ax4.loglog(R, u, 
+                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        ax5.loglog(R, P, 
+                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
 
         i += 1
 
