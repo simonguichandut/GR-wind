@@ -1,7 +1,7 @@
 ''' Input and Output '''
 
 import os
-from numpy import log10
+from numpy import log10,array
 
 def load_params():
     with open('params.txt','r') as f:
@@ -76,7 +76,7 @@ def make_directories():
 
 def write_to_file(logMdot,data):
 
-    # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau
+    # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
@@ -84,7 +84,7 @@ def write_to_file(logMdot,data):
 
     with open(filename,'w') as f:
         # f.write('%s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s\n'%
-        #     ('r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)'))
+        #     ('r (km)',s'u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)'))
         f.write('{:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s}\n'.format(
             'r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)'))
 
@@ -93,7 +93,27 @@ def write_to_file(logMdot,data):
             f.write('%0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e\n'%
                 (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i]))
 
-    
+
+def read_from_file(logMdot):
+
+    # output is arrays : R, u, cs, rho, T, P, phi, L, Lstar, E
+
+    dirname = get_name()
+    path = 'results/' + dirname + '/data/'
+    filename = path + str(logMdot) + '.txt'
+
+    def append_vars(line,varz,cols): # take line of file and append its values to variable lists 
+        l=line.split()
+        for var,col in zip(varz,cols):
+            var.append(float(l[col]))
+
+    R, u, cs, rho, T, P, phi, L, Lstar, E = [[] for i in range (10)]
+    with open(filename,'r') as f:
+        next(f)
+        for line in f: 
+            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E],[i for i in range(10)])
+
+    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E)
 
 
 def save_plots(figs,fignames,img):
@@ -136,4 +156,15 @@ def clean_rootfile():
                 save_root(x,y)
             
 
-# clean_rootfile()
+# def pickle_save(name):
+    
+#     # Save all arrays into pickle file
+
+#     # Import Winds
+#     clean_rootfile()
+#     logMDOTS,roots = load_roots()
+
+#     if not os.path.exists('pickle/'):
+#         os.mkdir('pickle/')
+
+    
