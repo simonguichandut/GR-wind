@@ -493,4 +493,4 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 # err1,err2=MakeWind([1.02,7.1],18.9)
 # err1,err2=MakeWind([1.025088,7.192513],18.5)
-# print(err1,err2)
+# print(err1,err2) 
