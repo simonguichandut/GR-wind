@@ -35,7 +35,8 @@ rhomax = 1e5
 # -------------------------------------------- Microphysics ----------------------------------------------------
 
 def kappa(T):
-    return kappa0/(1.0+(2.2e-9*T)**0.86)
+    # return kappa0/(1.0+(2.2e-9*T)**0.86)
+    return kappa0/(1.0+(T/4.5e8)**0.86)     # warning : just changing this changes the roots
 #    return kappa0/(1+(2.187e-9*T)**0.976) # From Juri Poutanen's paper
 
 def cs2(T):  # ideal gas sound speed  c_s^2

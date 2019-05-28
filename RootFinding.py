@@ -2,8 +2,10 @@ import numpy as np
 from numpy.linalg import norm
 from numpy import array
 import sys
+import os
 
 from wind_GR import MakeWind
+from IO import load_roots
 
 def Jacobian(func,za,zb,*args):
 
@@ -82,27 +84,40 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
     return z1
 
 
-def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):  
+def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):  
     
     ''' Finds the error-minimizing set of parameters (Edot,Ts) for a wind 
         with a given Mdot '''
-        
+
     print('Starting root finding algorithm for logMdot = %.2f'%logMdot)
+
+    # First check if we can start from a root in file
+
+    find_first_root = 1
+    if usefile:
+        logMDOTS,roots = load_roots()
+        if logMdot in logMDOTS:
+            print('First root from file')
+            z0 = roots[logMDOTS.index(logMdot)]
+            z1 = [z0[0]+0.001,z0[1]+0.01]
+            find_first_root = 0
+
+    if find_first_root:
+                    
+        Edotmin = 1.001 # in units of LEdd. There are likely no solutions with a lower Edot
         
-    Edotmin = 1.001 # in units of LEdd. There are likely no solutions with a lower Edot
-    
-    # But this Edot might not converge
-    err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
-    while 100 in err:
-        Edotmin += 0.01
-        print('\nEdotmin: ',Edotmin)
+        # But this Edot might not converge
         err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
-        
-        if Edotmin>1.1:
-            sys.exit('Inadequate initial Ts0, exiting..')
-              
-    # Initial guesses (the second one just needs to be closer to the solution)
-    z0,z1 = [Edotmin+0.002,logTs0] , [Edotmin+0.0025,logTs0-0.01]
+        while 100 in err:
+            Edotmin += 0.01
+            print('\nEdotmin: ',Edotmin)
+            err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
+            
+            if Edotmin>1.1:
+                sys.exit('Inadequate initial Ts0, exiting..')
+                
+        # Initial guesses (the second one just needs to be closer to the solution)
+        z0,z1 = [Edotmin+0.002,logTs0] , [Edotmin+0.0025,logTs0-0.01]
 
     # It happens that z1 does not work..
     err = MakeWind(z1,logMdot,Verbose=Verbose)
@@ -116,7 +131,6 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0):
             sys.exit('Inadequate initial Ts0, exiting..')
 
     limits = [1,1.1,6.5,8]
-    
     print('\nStarting Rootfinding with first two iterations of (Edot,Ts) : ',z0,z1)
     root = Newton_Raphson_2D(MakeWind,z0,z1,limits,logMdot,flagcatch=100)
 
@@ -131,34 +145,34 @@ from IO import save_root
 
 
 ## A single root
-logMdot = 17.15
-logTs0 = 7.3
-root=RootFinder(logMdot,logTs0=logTs0)
-save_root(logMdot,root)
+# logMdot = 17.15
+# logTs0 = 7.3
+# root=RootFinder(logMdot,logTs0=logTs0)
+# save_root(logMdot,root)
     
 
 ## Mutliple roots
 
-#logMDOTS = np.arange(19,17.3,-0.1)
-#logMDOTS = np.arange(18.05,19,0.1)
+logmdots = np.round(np.arange(19,17.1,-0.05),decimals=2)
+# logMDOTS = np.arange(18.05,19,0.1)
 # logMDOTS = np.arange(17.95,17,-0.05)
-# roots = []
-# problems = []
+roots = []
+problems = []
 
-# for logMDOT in logMDOTS:
+for logMDOT in logmdots:
    
-# #    logTs0=7.4 if logMDOT<18.6 else 7.1   # maybe don't need this anymore now that error2 doesnt have nans?
+#    logTs0=7.4 if logMDOT<18.6 else 7.1   # maybe don't need this anymore now that error2 doesnt have nans?
        
-#    try:
-#     #    root = RootFinder(logMDOT,logTs0=logTs0)
-#        root = RootFinder(logMDOT)
-#        roots.append(root)
-#        save_root(logMDOT,root)
-#    except:
-#        problems.append(logMDOT)
+   try:
+    #    root = RootFinder(logMDOT,logTs0=logTs0)
+       root = RootFinder(logMDOT)
+       roots.append(root)
+       save_root(logMDOT,root)
+   except:
+       problems.append(logMDOT)
        
-# print('There were problems for these values:')
-# print(problems)
+print('There were problems for these values:')
+print(problems)
         
 
         
