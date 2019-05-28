@@ -50,16 +50,19 @@ def load_roots():
     filename = get_name()
     path = 'wind_solutions/sols_' + filename + '.txt'
 
-    logMDOTS = []
-    roots = []
-    with open(path, 'r') as f:
-        next(f)
-        for line in f:
-            stuff = line.split()
-            logMDOTS.append(float(stuff[0]))
-            roots.append([float(stuff[1]), float(stuff[2])])
+    if not os.path.exists(path):
+        print('Root file does not exist')
 
-    return logMDOTS,roots
+    else:
+        logMDOTS,roots = [],[]
+        with open(path, 'r') as f:
+            next(f)
+            for line in f:
+                stuff = line.split()
+                logMDOTS.append(float(stuff[0]))
+                roots.append([float(stuff[1]), float(stuff[2])])
+
+        return logMDOTS,roots
 
 
 
