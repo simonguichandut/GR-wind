@@ -460,6 +460,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         _, rho_inner1, _, _ = calculateVars(
             r_inner1, T_inner1, phi=phi_inner1, inwards=True)
         rho95 = rho_inner1[-1]
+        # r_inner1,T_inner1,rho_inner1 = r_inner1[1:],T_inner1[1:],rho_inner1[1:]  # remove first point(sonic) because duplicate with r_outer
 
         # Second inner integration 
         npoints = 2000
@@ -470,15 +471,15 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         
         if len(result_inner2)<npoints:
             rho_inner2 = rho_inner2[:len(result_inner2)]
+        # r_inner2,T_inner2,rho_inner2 = r_inner2[1:],T_inner2[1:],rho_inner2[1:]  # remove first point(sonic) because duplicate with r_outer
 
-
-        # Attaching arrays for r,rho,T from surface to photosphere
-        r_inner = np.append(np.flip(r_inner2, axis=0),
-                            np.flip(r_inner1, axis=0))
-        T_inner = np.append(np.flip(T_inner2, axis=0),
-                            np.flip(T_inner1, axis=0))
-        rho_inner = np.append(np.flip(rho_inner2, axis=0),
-                              np.flip(rho_inner1, axis=0))
+        # Attaching arrays for r,rho,T from surface to photosphere   (ignoring first point in both arrays because duplicates at r=rs and r=r95)
+        r_inner = np.append(np.flip(r_inner2[1:], axis=0),
+                            np.flip(r_inner1[1:], axis=0))
+        T_inner = np.append(np.flip(T_inner2[1:], axis=0),
+                            np.flip(T_inner1[1:], axis=0))
+        rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
+                              np.flip(rho_inner1[1:], axis=0))
 
         R = np.append(r_inner, r_outer)
         T = np.append(T_inner, T_outer)

@@ -36,7 +36,7 @@ def save_root(logMDOT,root):
 
     if not os.path.exists(path):
         f = open(path,'w+')
-        f.write('{:<7s} \t {:<10s} \t {:<10s}\n'.format(
+        f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
             'logMdot' , 'Edot/LEdd' , 'log10(Ts)'))
     else:
         f = open(path,'a')
@@ -79,27 +79,31 @@ def make_directories():
 
 def write_to_file(logMdot,data):
 
-    # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau
+    # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs (rs is just a number)
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
     filename = path + str(logMdot) + '.txt'
 
     with open(filename,'w') as f:
-        # f.write('%s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s \t %s\n'%
-        #     ('r (km)',s'u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)'))
-        f.write('{:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s} \t {:<8s}\n'.format(
-            'r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)'))
+        f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
+            'r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau'))
 
-        R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau = data
+        R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs = data
         for i in range(len(R)):
-            f.write('%0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e \t %0.3e\n'%
-                (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i]))
+            f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
+                (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i], tau[i]))
+
+            if R[i]!=rs:
+                f.write('\n')
+            else:
+                f.write('\t sonic point\n')
+                
 
 
 def read_from_file(logMdot):
 
-    # output is arrays : R, u, cs, rho, T, P, phi, L, Lstar, E
+    # output is arrays : R, u, cs, rho, T, P, phi, L, Lstar, E and sonic point rs
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
@@ -110,13 +114,14 @@ def read_from_file(logMdot):
         for var,col in zip(varz,cols):
             var.append(float(l[col]))
 
-    R, u, cs, rho, T, P, phi, L, Lstar, E = [[] for i in range (10)]
+    R, u, cs, rho, T, P, phi, L, Lstar, E, tau = [[] for i in range (11)]
     with open(filename,'r') as f:
         next(f)
         for line in f: 
-            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E],[i for i in range(10)])
+            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, tau],[i for i in range(11)])
+            if line.split()[-1]=='point': rs = float(line.split()[0])*1e5
 
-    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E)
+    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),rs
 
 
 def save_plots(figs,fignames,img):
