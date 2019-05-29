@@ -80,7 +80,7 @@ for logMdot, root in zip(logMDOTS, roots):
         root, logMdot, mode='wind')
 
     if save:
-        data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau]
+        data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs]
         write_to_file(logMdot, data)
 
     if logMdot in (17.25, 17.5, 17.75, 18, 18.25 , 18.5, 18.75, 19):
@@ -98,16 +98,18 @@ for logMdot, root in zip(logMDOTS, roots):
         #     '%.2f' % (log10(Mdot))))
         # ax5.plot(log10(R), log10(P), color=c lw=0.8, label=(
         #     '%.2f' % (log10(Mdot))))
+
         ax1.semilogx(R, Lstar/LEdd,
                 color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-        ax2.loglog(R, T, 
-                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-        ax3.loglog(Rho, T,
-                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-        ax4.loglog(R, u, 
-                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-        ax5.loglog(R, P, 
-                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        def myloglogplot(ax,x,y):
+                ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        def draw_sonicpoint(ax,x,y):
+                sonic = list(R).index(rs)
+                ax.loglog([x[sonic]] , y[sonic], marker='x', color='k')
+        for ax,x,y in zip((ax2,ax3,ax4,ax5) , (R,Rho,R,R) , (T,T,u,P)):
+                myloglogplot(ax,x,y)
+                if i%2==0:draw_sonicpoint(ax,x,y)
+
 
         i += 1
 
