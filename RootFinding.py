@@ -67,6 +67,7 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
                 print('pillow update v2: ',pillow)
                 znew = np.array(z1) - pillow*np.matmul(np.linalg.inv(J),f1)
                 fnew = func(znew,*args)
+                if pillow < 1e-20 : sys.exit('Fell into a poorly behaved region, exiting..')
         
         z0,f0 = z1[:],f1[:]
         z1,f1 = znew[:],fnew[:]
@@ -79,7 +80,8 @@ def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
         
         if counter>nitermax:
             sys.exit('Not able to find a root after %d iterations, exiting..'%nitermax)
-            
+
+    print('Root found at : ',z1,'\n\n')        
         
     return z1
 
@@ -89,7 +91,7 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
     ''' Finds the error-minimizing set of parameters (Edot,Ts) for a wind 
         with a given Mdot '''
 
-    print('Starting root finding algorithm for logMdot = %.2f'%logMdot)
+    print('\n Starting root finding algorithm for logMdot = %.2f'%logMdot)
 
     # First check if we can start from a root in file
 
@@ -104,12 +106,12 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
 
     if find_first_root:
                     
-        Edotmin = 1.001 # in units of LEdd. There are likely no solutions with a lower Edot
+        Edotmin = 1.01 # in units of LEdd. There are likely no solutions with a lower Edot
         
         # But this Edot might not converge
         err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
         while 100 in err:
-            Edotmin += 0.01
+            Edotmin += 0.002
             print('\nEdotmin: ',Edotmin)
             err=MakeWind([Edotmin,logTs0],logMdot,Verbose=Verbose)
             
@@ -123,9 +125,20 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
     err = MakeWind(z1,logMdot,Verbose=Verbose)
     i=1
     while 100 in err:
-        print('z1 inadequate')
+        print('z1 inadequate (no solution)')
         z1 = [Edotmin+0.0025 , logTs0 + (-1)**i *i*0.01] # Alternating between going below and above Ts0
         err = MakeWind(z1,logMdot,Verbose=Verbose)
+        i += 1  
+        if i == 10:
+            sys.exit('Inadequate initial Ts0, exiting..')
+
+    # Check that first jacobian to compute is non-singular
+    J = Jacobian(MakeWind,z0,z1,logMdot)
+    i=1
+    while np.linalg.det(J)==0.0:
+        print("z1 inadequate (singular jacobian)")
+        z1 = [Edotmin+0.0025 , logTs0 + (-1)**i *i*0.01] # Alternating between going below and above Ts0
+        J = Jacobian(MakeWind,z0,z1,logMdot)
         i += 1  
         if i == 10:
             sys.exit('Inadequate initial Ts0, exiting..')
@@ -141,38 +154,40 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
-from IO import save_root
+from IO import save_root,clean_rootfile
 
 
-## A single root
-# logMdot = 17.15
-# logTs0 = 7.3
-# root=RootFinder(logMdot,logTs0=logTs0)
-# save_root(logMdot,root)
+# A single root
+logMdot = 17.3
+logTs0 = 7.4
+root=RootFinder(logMdot,logTs0=logTs0,usefile=0)
+save_root(logMdot,root)
     
 
 ## Mutliple roots
 
-logmdots = np.round(np.arange(19,17.1,-0.05),decimals=2)
-# logMDOTS = np.arange(18.05,19,0.1)
-# logMDOTS = np.arange(17.95,17,-0.05)
-roots = []
-problems = []
+# logmdots = np.round(np.arange(19,17.1,-0.05),decimals=2)
+# # logMDOTS = np.arange(18.05,19,0.1)
+# # logMDOTS = np.arange(17.95,17,-0.05)
+# roots = []
+# problems = []
 
-for logMDOT in logmdots:
+# usefile=0
+
+# for logMDOT in logmdots:
    
-#    logTs0=7.4 if logMDOT<18.6 else 7.1   # maybe don't need this anymore now that error2 doesnt have nans?
+#    logTs0=7.5 if logMDOT<18 else 7.1   # maybe don't need this anymore now that error2 doesnt have nans?
        
-   try:
-    #    root = RootFinder(logMDOT,logTs0=logTs0)
-       root = RootFinder(logMDOT)
-       roots.append(root)
-       save_root(logMDOT,root)
-   except:
-       problems.append(logMDOT)
+#    try:
+#        root = RootFinder(logMDOT,logTs0=logTs0,usefile=usefile)
+#        roots.append(root)
+#        save_root(logMDOT,root)
+#    except:
+#        problems.append(logMDOT)
+#        print('PROBLEM WITH LOGMDOT = ',logMDOT)
        
-print('There were problems for these values:')
-print(problems)
+# print('There were problems for these values:')
+# print(problems)
         
 
         
