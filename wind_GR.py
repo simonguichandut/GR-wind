@@ -7,6 +7,7 @@ import numpy as np
 from numpy import linspace, sqrt, log10, array, pi
 from IO import load_params
 import os
+from lsoda_remove import stdout_redirected
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
@@ -22,7 +23,8 @@ sigmarad = 0.25*arad*c
 M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
 if comp == 'He':
-    mu = 4.0/3.0
+    # mu = 4.0/3.0  
+    mu = 4
 GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
 
@@ -30,7 +32,7 @@ ZZ = (1-2*GM/(c**2*RNS*1e5))**(-1/2) # redshift
 g = GM/(RNS*1e5)**2 * ZZ
 P_inner = g*y_inner
 
-rhomax = 1e5
+rhomax = 1e6
 
 # -------------------------------------------- Microphysics ----------------------------------------------------
 
@@ -263,8 +265,9 @@ def outerIntegration(Ts, returnResult=False):
     inic = [Ts, 2.0]
     r_outer = 50*rs
     r = np.linspace(rs, r_outer, 5000)
-    result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
-                    rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
+    with stdout_redirected():
+        result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
+                        rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
 
     # odeint does not support stop conditions (should switch to scipy.integrate.ode, dopri5 integrator, with solout option)
     # For now, just cut the solution where the first NaN appears
@@ -349,9 +352,10 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
     if verbose:
         print('\n**** Running innerIntegration RHO ****')
 
-    inic = [T95, r95] 
-    result,info = odeint(drho, inic, rho, atol=1e-6, 
-                    rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
+    inic = [T95, r95]
+    with stdout_redirected(): 
+        result,info = odeint(drho, inic, rho, atol=1e-6, 
+                        rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
     flag = 0
 
     # Removing NaNs
