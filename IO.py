@@ -122,6 +122,7 @@ def read_from_file(logMdot):
             if line.split()[-1]=='point': rs = float(line.split()[0])*1e5
 
     return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),rs
+    # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs
 
 
 def save_plots(figs,fignames,img):
