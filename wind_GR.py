@@ -247,7 +247,7 @@ def drho(inic, rho):
     dT_dr = T/r * dlnT_dlnr
 
     # eq 6 from Paczynski
-    dlnr_dlnrho = (cs2(T)-A(r)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A(r) + C(Lstar, T, r, rho, u)) 
+    dlnr_dlnrho = (cs2(T)-A(T)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A(T) + C(Lstar, T, r, rho, u)) 
                                          
     dr_drho = r/rho * dlnr_dlnrho
     dT_drho = dT_dr * dr_drho
@@ -335,10 +335,10 @@ def outerIntegration(Ts, returnResult=False):
             return (L2 - L1) / (L1 + L2)      # Boundary error #1
 
 
-def innerIntegration_phi(r, Ts):
-    ''' Integrates in from the sonic point to 0.95rs, using phi as the independent variable '''
+def innerIntegration_r(r, Ts):
+    ''' Integrates in from the sonic point to 0.95rs, using r as the independent variable '''
     if verbose:
-        print('\n**** Running innerIntegration PHI ****')
+        print('\n**** Running innerIntegration R ****')
     inic = [Ts, 2.0]
     result,info = odeint(dr, inic, r, args=(True,), atol=1e-6,
                     rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
@@ -389,13 +389,14 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
 
         result = result[:b]
 
-#        print(RNS_calc)
-#        import matplotlib.pyplot as plt
-#        plt.figure()
-#        plt.loglog(r,P,'k.-')
-#        plt.loglog([r[0],r[-1]],[P_inner,P_inner],'k--')
-#        plt.loglog([r[a],r[b]],[P[a],P[b]],'ro')
-#        plt.loglog([RNS_calc],[P_inner],'bo')
+        # print(RNS_calc)
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.loglog(r,P,'k.-')
+        # plt.loglog([r[0],r[-1]],[P_inner,P_inner],'k--')
+        # plt.loglog([r[a],r[b]],[P[a],P[b]],'ro')
+        # plt.loglog([RNS_calc],[P_inner],'bo')
+        # plt.show()
 
 
     if returnResult:
@@ -437,7 +438,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
             # First inner integration
             r95 = 0.95*rs
             r_inner1 = np.linspace(rs, r95, 1000)
-            result_inner1 = innerIntegration_phi(r_inner1, Ts)
+            result_inner1 = innerIntegration_r(r_inner1, Ts)
             T95, phi95 = result_inner1[-1, :]
             _, rho95, _, _ = calculateVars(r95, T95, phi=phi95, inwards=True)
 
@@ -458,7 +459,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         # First inner integration
         r95 = 0.95*rs
         r_inner1 = np.linspace(rs, r95, 1000)
-        result_inner1 = innerIntegration_phi(r_inner1, Ts)
+        result_inner1 = innerIntegration_r(r_inner1, Ts)
         T_inner1, phi_inner1 = result_inner1[:, 0], result_inner1[:, 1]
         T95, phi95 = result_inner1[-1, :]
         _, rho_inner1, _, _ = calculateVars(
@@ -497,6 +498,10 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
+# from IO import load_roots
+# x,z = load_roots()
+# err1,err2=MakeWind(z[-1],x[-1], Verbose=True)
+# err1,err2=MakeWind([1.02568, 7.314739],18.5, Verbose=True)
 # err1,err2=MakeWind([1.02,7.1],18.9)
 # err1,err2=MakeWind([1.025088,7.192513],18.5)
 # print(err1,err2) 
