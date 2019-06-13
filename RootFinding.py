@@ -158,36 +158,40 @@ from IO import save_root,clean_rootfile
 
 
 # A single root
-logMdot = 17.3
-logTs0 = 7.4
-root=RootFinder(logMdot,logTs0=logTs0,usefile=0)
-save_root(logMdot,root)
+# logMdot = 17.3
+# logTs0 = 7.4
+# root=RootFinder(logMdot,logTs0=logTs0,usefile=0)
+# save_root(logMdot,root)
     
 
 ## Mutliple roots
 
 # logmdots = np.round(np.arange(19,17.1,-0.05),decimals=2)
-# # logMDOTS = np.arange(18.05,19,0.1)
-# # logMDOTS = np.arange(17.95,17,-0.05)
-# roots = []
-# problems = []
+logmdots = [18.5,18.45,17.45]
+# logMDOTS = np.arange(18.05,19,0.1)
+# logMDOTS = np.arange(17.95,17,-0.05)
 
-# usefile=0
+roots = []
+problems = []
+usefile=0
 
-# for logMDOT in logmdots:
+for logMDOT in logmdots:
    
-#    logTs0=7.5 if logMDOT<18 else 7.1   # maybe don't need this anymore now that error2 doesnt have nans?
+    if usefile: 
+        logTs0=None
+    else:
+        logTs0=7.5 if logMDOT<18 else 7.1  
        
-#    try:
-#        root = RootFinder(logMDOT,logTs0=logTs0,usefile=usefile)
-#        roots.append(root)
-#        save_root(logMDOT,root)
-#    except:
-#        problems.append(logMDOT)
-#        print('PROBLEM WITH LOGMDOT = ',logMDOT)
+    try:
+        root = RootFinder(logMDOT,logTs0=logTs0,usefile=usefile)
+        roots.append(root)
+        save_root(logMDOT,root)
+    except:
+        problems.append(logMDOT)
+        print('PROBLEM WITH LOGMDOT = ',logMDOT)
        
-# print('There were problems for these values:')
-# print(problems)
+print('There were problems for these values:')
+print(problems)
         
 
         
