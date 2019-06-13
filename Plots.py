@@ -30,6 +30,15 @@ logMDOTS,roots = load_roots()
 
 
 ########## PLOTS ###########
+def set_style():
+    plt.style.use(['seaborn-talk'])
+def beautify(fig,ax):
+    set_style()
+    ax.tick_params(which='both',direction='in')
+    ax.yaxis.set_ticks_position('both')
+    ax.xaxis.set_ticks_position('both')
+    fig.tight_layout()
+
 
 # Radius-Luminosity (fig. 2)
 fig1, ax1 = plt.subplots(1, 1)
@@ -101,14 +110,16 @@ for logMdot, root in zip(logMDOTS, roots):
 
         ax1.semilogx(R, Lstar/LEdd,
                 color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        beautify(fig1,ax1)
         def myloglogplot(ax,x,y):
                 ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         def draw_sonicpoint(ax,x,y):
                 sonic = list(R).index(rs)
                 ax.loglog([x[sonic]] , y[sonic], marker='x', color='k')
-        for ax,x,y in zip((ax2,ax3,ax4,ax5) , (R,Rho,R,R) , (T,T,u,P)):
+        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5),(ax2,ax3,ax4,ax5) , (R,Rho,R,R) , (T,T,u,P)):
                 myloglogplot(ax,x,y)
                 if i%2==0:draw_sonicpoint(ax,x,y)
+                beautify(fig,ax)
 
 
         i += 1
