@@ -2,8 +2,15 @@
 
 import os
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib import rc
 from numpy import log10, pi, array, linspace, logspace, floor
+
+rc('text', usetex = True)
+# rc('font', family = 'serif')
+mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
+mpl.rcParams.update({'font.size': 15})
 
 from wind_GR import MakeWind
 from IO import *
@@ -42,40 +49,30 @@ def beautify(fig,ax):
 
 # Radius-Luminosity (fig. 2)
 fig1, ax1 = plt.subplots(1, 1)
-# ax1.set_xlabel(r'log $r$ (cm)', fontsize=14)
-# ax1.set_ylabel(r'log $L^*/L_{Edd}$', fontsize=14)
-ax1.set_xlabel(r'$r$ (cm)', fontsize=14)
-# ax1.set_ylabel(r'$L^*/L_{Edd}$', fontsize=14)
-ax1.set_ylabel(r'$L/L_{Edd}$', fontsize=14)     # Not writing L* for clarity (but keep in mind this is still lum at inf)
+ax1.set_xlabel(r'$r$ (cm)')
+ax1.set_ylabel(r'$L_{\infty}/L_{Edd}$')    
 
 # Radius-Temperature (fig. 4)
 fig2, ax2 = plt.subplots(1, 1)
-# ax2.set_xlabel(r'log $r$ (cm)', fontsize=14)
-# ax2.set_ylabel(r'log $T$ (K)', fontsize=14)
-ax2.set_xlabel(r'$r$ (cm)', fontsize=14)
-ax2.set_ylabel(r'$T$ (K)', fontsize=14)
+ax2.set_xlabel(r'$r$ (cm)')
+ax2.set_ylabel(r'$T$ (K)')
 
 # Density-Temperature (fig. 5)
 fig3, ax3 = plt.subplots(1, 1)
-# ax3.set_xlabel(r'log $\rho$ (g cm$^{-3}$)', fontsize=14)
-# ax3.set_ylabel(r'log $T$ (K)', fontsize=14)
-ax3.set_xlabel(r'$\rho$ (g cm$^{-3}$)', fontsize=14)
-ax3.set_ylabel(r'$T$ (K)', fontsize=14)
+ax3.set_xlabel(r'$\rho$ (g cm$^{-3}$)')
+ax3.set_ylabel(r'$T$ (K)')
 
 # Radius-Velocity (fig. 6)
 fig4, ax4 = plt.subplots(1, 1)
-# ax4.set_xlabel(r'log $r$ (cm)', fontsize=14)
-# ax4.set_ylabel(r'log $v$ (cm s$^{-1}$)', fontsize=14)
-ax4.set_xlabel(r'$r$ (cm)', fontsize=14)
-ax4.set_ylabel(r'$v$ (cm s$^{-1}$)', fontsize=14)
+ax4.set_xlabel(r'$r$ (cm)')
+ax4.set_ylabel(r'$v$ (cm s$^{-1}$)')
 
 # Radius-Pressure
 fig5, ax5 = plt.subplots(1, 1)
-# ax5.set_xlabel(r'log $r$ (cm)', fontsize=14)
-# ax5.set_ylabel(r'log $P$ (g cm$^{-1}$ s$^{-2}$)', fontsize=14)
-ax5.set_xlabel(r'$r$ (cm)', fontsize=14)
-ax5.set_ylabel(r'$P$ (g cm$^{-1}$ s$^{-2}$)', fontsize=14)
+ax5.set_xlabel(r'$r$ (cm)')
+ax5.set_ylabel(r'$P$ (g cm$^{-1}$ s$^{-2}$)')
 
+Lb = []  # base luminosity
 colors = ['r', 'b', 'g', 'k', 'm']
 
 i = 0
@@ -88,6 +85,8 @@ for logMdot, root in zip(logMDOTS, roots):
     R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(
         root, logMdot, mode='wind')
 
+    Lb.append(L[0])
+
     if save:
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs]
         write_to_file(logMdot, data)
@@ -96,17 +95,6 @@ for logMdot, root in zip(logMDOTS, roots):
 
         c = colors[int(np.floor(i/2)-1)]
         ls = '-' if i%2==0 else '--'
-
-        # ax1.plot(log10(R), log10(Lstar/LEdd),
-        #          color=c lw=0.8, label=('%.2f' % (log10(Mdot))))
-        # ax2.plot(log10(R), log10(T), color=c lw=0.8, label=(
-        #     '%.2f' % (log10(Mdot))))
-        # ax3.plot(log10(Rho), log10(T),
-        #          color=c lw=0.8, label=('%.2f' % (log10(Mdot))))
-        # ax4.plot(log10(R), log10(u), color=c lw=0.8, label=(
-        #     '%.2f' % (log10(Mdot))))
-        # ax5.plot(log10(R), log10(P), color=c lw=0.8, label=(
-        #     '%.2f' % (log10(Mdot))))
 
         ax1.semilogx(R, Lstar/LEdd,
                 color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
@@ -124,23 +112,23 @@ for logMdot, root in zip(logMDOTS, roots):
 
         i += 1
 
-
 ax1.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
-# ax1.set_xlim([5.8, 9.2])
-# ax1.set_ylim([-0.1, 0.9])
 ax2.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
-# ax2.set_xlim([5.8, 9.2])
-# ax2.set_ylim([5.6, 10])
 ax3.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
-# ax3.set_xlim([-9, 8])
-# ax3.set_ylim([5.6, 10])
 ax4.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
-# ax4.set_xlim([5.8, 9.2])
-# ax4.set_ylim([5, 9])
 ax5.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
-# ax5.set_xlim([5.8, 9.2])
+
+# Additionnal plots
+
+Fb = array(Lb)/(4*pi*(RNS*1e5)**2)  # non-redshifted base flux
+fig6, ax6 = plt.subplots(1, 1)
+ax6.set_xlabel(r'$F_b$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
+ax6.set_ylabel(r'log $\dot{M}$ (g/s)')
+ax6.plot(Fb/1e25,logMDOTS,'k.-',lw=0.8)
+beautify(fig6,ax6)
+
 
 if save: 
-    save_plots([fig1,fig2,fig3,fig4,fig5],['Luminosity','Temperature1','Temperature2','Velocity','Pressure'],img)
+    save_plots([fig1,fig2,fig3,fig4,fig5,fig6],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot'],img)
 else:
     plt.show()
