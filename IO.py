@@ -1,7 +1,7 @@
 ''' Input and Output '''
 
 import os
-from numpy import log10,array
+from numpy import log10,array,pi
 
 def load_params():
     with open('params.txt','r') as f:
@@ -85,11 +85,12 @@ def write_to_file(logMdot,data):
     path = 'results/' + dirname + '/data/'
     filename = path + str(logMdot) + '.txt'
 
+    R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs = data
+
     with open(filename,'w') as f:
         f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
             'r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau'))
 
-        R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs = data
         for i in range(len(R)):
             f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
                 (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i], tau[i]))
@@ -98,6 +99,22 @@ def write_to_file(logMdot,data):
                 f.write('\n')
             else:
                 f.write('\t sonic point\n')
+
+
+    # Flux Mdot file 
+    Lb = L[0]
+    Fb = Lb/(4*pi*R[0]**2)
+
+    filename = path + 'Flux_Mdot.txt'
+    if not os.path.exists(filename):
+        f = open(filename,'w+')
+        f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
+            'logMdot' , 'Fb' , 'Lb'))
+    else:
+        f = open(filename,'a')
+
+    f.write('{:<7.2f} \t {:<10e} \t {:<10e}\n'.format(
+            logMdot,Fb,Lb))
                 
 
 
