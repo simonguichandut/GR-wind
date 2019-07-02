@@ -12,7 +12,7 @@ rc('text', usetex = True)
 mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
 mpl.rcParams.update({'font.size': 15})
 
-from wind_GR import MakeWind
+from wind_GR import *
 from IO import *
 
 import warnings
@@ -72,7 +72,18 @@ fig5, ax5 = plt.subplots(1, 1)
 ax5.set_xlabel(r'$r$ (cm)')
 ax5.set_ylabel(r'$P$ (g cm$^{-1}$ s$^{-2}$)')
 
-Lb = []  # base luminosity
+# Density-Opacity
+fig7, ax7 = plt.subplots(1, 1)
+ax7.set_xlabel(r'$\rho$ (g cm$^{-3}$)')
+ax7.set_ylabel(r'$\kappa$')
+
+# Density-Optical depth
+fig8, ax8 = plt.subplots(1, 1)
+ax8.set_xlabel(r'$\rho$ (g cm$^{-3}$)')
+ax8.set_ylabel(r'$\tau$')
+ax8.axhline(1)
+
+Lbs = []  # base luminosity, redshifted to infinity
 colors = ['r', 'b', 'g', 'k', 'm']
 
 i = 0
@@ -85,7 +96,7 @@ for logMdot, root in zip(logMDOTS, roots):
     R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(
         root, logMdot, mode='wind')
 
-    Lb.append(L[0])
+    Lbs.append(Lstar[0])
 
     if save:
         data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs]
@@ -96,39 +107,35 @@ for logMdot, root in zip(logMDOTS, roots):
         c = colors[int(np.floor(i/2)-1)]
         ls = '-' if i%2==0 else '--'
 
-        ax1.semilogx(R, Lstar/LEdd,
-                color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        ax1.semilogx(R, Lstar/LEdd,color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         beautify(fig1,ax1)
+
         def myloglogplot(ax,x,y):
                 ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         def draw_sonicpoint(ax,x,y):
                 sonic = list(R).index(rs)
-                ax.loglog([x[sonic]] , y[sonic], marker='x', color='k')
-        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5),(ax2,ax3,ax4,ax5) , (R,Rho,R,R) , (T,T,u,P)):
+                ax.loglog([x[sonic]] , [y[sonic]], marker='.', color='k')
+        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (R,Rho,R,R,Rho,Rho) , (T,T,u,P,kappa(Rho,T),tau)):
                 myloglogplot(ax,x,y)
                 if i%2==0:draw_sonicpoint(ax,x,y)
                 beautify(fig,ax)
 
-
         i += 1
 
-ax1.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
-ax2.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
-ax3.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
-ax4.legend(title=r'log $\dot{M}$ (g/s)', loc=4)
-ax5.legend(title=r'log $\dot{M}$ (g/s)', loc=1)
+for ax in (ax2,ax3,ax4,ax5,ax7,ax8):
+        ax.legend(title=r'log $\dot{M}$ (g/s)', loc='best')
 
 # Additionnal plots
 
-Fb = array(Lb)/(4*pi*(RNS*1e5)**2)  # non-redshifted base flux
+Fbs = array(Lbs)/(4*pi*(RNS*1e5)**2)  # redshifted base flux
 fig6, ax6 = plt.subplots(1, 1)
-ax6.set_xlabel(r'$F_b$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
+ax6.set_xlabel(r'$F_{b,\infty}$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
 ax6.set_ylabel(r'log $\dot{M}$ (g/s)')
-ax6.plot(Fb/1e25,logMDOTS,'k.-',lw=0.8)
+ax6.plot(Fbs/1e25,logMDOTS,'k.-',lw=0.8)
 beautify(fig6,ax6)
 
 
 if save: 
-    save_plots([fig1,fig2,fig3,fig4,fig5,fig6],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot'],img)
+    save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot','Opacity','Optical_depth'],img)
 else:
     plt.show()

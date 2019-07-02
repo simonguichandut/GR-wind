@@ -23,7 +23,15 @@ sigmarad = 0.25*arad*c
 M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
 if comp == 'He':
+    Z=2
     mu_I, mu_e, mu = 4, 2, 4/3
+elif comp == 'Ni':
+    Z = 28
+    mu_I, mu_e = 56, 2
+    mu = 1/(1/mu_I + 1/mu_e)
+
+# Nickel 56
+# A=56,Z=28	
 
 GM = 6.6726e-8*2e33*M
 LEdd = 4*pi*c*GM/kappa0
@@ -44,11 +52,10 @@ def Swz(r):  # Schwartzchild metric term
 
 # -------------------------------------------- Microphysics ----------------------------------------------------
 
-def kappa(T):
-    # return kappa0/(1.0+(2.2e-9*T)**0.86)
-    return kappa0/(1.0+(T/4.5e8)**0.86)     # warning : just changing this changes the roots
-#    return kappa0/(1+(2.187e-9*T)**0.976) # From Juri Poutanen's paper
-
+def kappa(rho,T):
+    # return kappa0/(1.0+(T/4.5e8)**0.86)     
+    return kappa0/(1.0+(T/4.5e8)**0.86) + 1e23*Z**2/(mu_e*mu_I)*rho*T**(-7/2)
+    
 def cs2(T):  # ideal gas sound speed  c_s^2  
     return kB*T/(mu*mp)
 
@@ -69,7 +76,7 @@ def Y(r, v):  # eq 2a
     return sqrt(Swz(r))*gamma(v)
 
 def Tstar(Lstar, T, r, rho, v):  # eq 2b
-    return Lstar/LEdd * kappa(T)/kappa0 * GM/(4*r) * 3*rho/(arad*T**4) * (1+(v/c)**2)**(-1) * Y(r, v)**(-3)
+    return Lstar/LEdd * kappa(rho,T)/kappa0 * GM/(4*r) * 3*rho/(arad*T**4) * (1+(v/c)**2)**(-1) * Y(r, v)**(-3)
 
 def H(rho, T):  # eq 2c
     return c**2 + (internal_energy(rho, T)+pressure(rho, T))/rho
@@ -201,11 +208,11 @@ def calculateVars_phi(r, T, phi, inwards=False, return_all=False):
         return u, rho, phi, Lstar
     else:
         L = Lstar/(1+u**2/c**2)/Y(r, u)**2
-        LEdd_loc = LEdd*(kappa0/kappa(T))*Swz(r)**(-1/2)
+        LEdd_loc = LEdd*(kappa0/kappa(rho,T))*Swz(r)**(-1/2)
         E = internal_energy(rho, T)
         P = pressure(rho, T)
         cs = sqrt(cs2(T))
-        tau = rho*kappa(T)*r
+        tau = rho*kappa(rho,T)*r
         return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
 
 def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electrons
@@ -224,11 +231,11 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electr
         return u, rho, phi, Lstar
     else:
         L = Lstar/(1+u**2/c**2)/Y(r, u)**2
-        LEdd_loc = LEdd*(kappa0/kappa(T))*Swz(r)**(-1/2)
+        LEdd_loc = LEdd*(kappa0/kappa(rho,T))*Swz(r)**(-1/2)
         E = internal_energy_e(rho, T)
         P = pressure_e(rho, T)
         cs = sqrt(cs2(T))
-        tau = rho*kappa(T)*r
+        tau = rho*kappa(rho,T)*r
         return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
 
         
@@ -337,7 +344,7 @@ def outerIntegration(Ts, returnResult=False):
 
         u, rho, phi, Lstar = calculateVars_phi(rr, T, phi=phi, inwards=False)
         L = Lstar/(1+(u/c)**2)/Y(rr, u)**2  # eq. 3 (comoving luminosity)
-        tau.append(rho*kappa(T)*rr)
+        tau.append(rho*kappa(rho,T)*rr)
 
         if flag and tau[-1] <= tau_out:
             flag = 0
@@ -459,11 +466,11 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         and wind : obtain the full solutions.   '''
 
     global Mdot, Edot, rs, verbose
-    Mdot, Edot, Ts, verbose = 10**logMdot, params[0] * \
-        LEdd, 10**params[1], Verbose
+    Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], Verbose
 
     # Start by finding the sonic point
     rs = rSonic(Ts)
+    
     if verbose:
         print('\nFor log10Ts = %.2f, located sonic point at log10r = %.2f' %
               (log10(Ts), log10(rs)))
