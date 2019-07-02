@@ -102,19 +102,19 @@ def write_to_file(logMdot,data):
 
 
     # Flux Mdot file 
-    Lb = L[0]
-    Fb = Lb/(4*pi*R[0]**2)
+    Lbs = Lstar[0]
+    Fbs = Lbs/(4*pi*R[0]**2)
 
     filename = path + 'Flux_Mdot.txt'
     if not os.path.exists(filename):
         f = open(filename,'w+')
         f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
-            'logMdot' , 'Fb' , 'Lb'))
+            'logMdot' , 'Fbs' , 'Lbs'))
     else:
         f = open(filename,'a')
 
     f.write('{:<7.2f} \t {:<10e} \t {:<10e}\n'.format(
-            logMdot,Fb,Lb))
+            logMdot,Fbs,Lbs))
                 
 
 

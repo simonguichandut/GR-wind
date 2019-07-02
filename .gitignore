@@ -29,3 +29,5 @@ analysis2.py
 envelope/
 
 *.gif
+
+.vscode/
