@@ -31,7 +31,7 @@ def JacobianUpdate(J0,za,zb,fa,fb,*args):
     return Jnew
     
 
-def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-3,flagcatch=0):
+def Newton_Raphson_2D(func,z0,z1,limits,*args,tol=1e-4,flagcatch=0):
 
     ''' Newton-Raphson root finding for a two input, two output function
         Two initial guesses have to be provided. Will soften iterations if 
@@ -195,17 +195,24 @@ def driver(logmdots,usefile=1):
     
 
 
-
 # Command line call
 if len(sys.argv)>1:
     
-    if '[' not in sys.argv[1] or ']' not in sys.argv[1]:
+    if sys.argv[1]!='all' and ('[' not in sys.argv[1] or ']' not in sys.argv[1]):
         sys.exit('Give logmdots as [a,b,c,...]')
 
-    logmdots = eval(sys.argv[1])
-
-    if len(sys.argv)>2:
-        driver(logmdots, usefile = sys.argv[2])
+    if sys.argv[1]=='all':
+        logmdots='all'
     else:
+        logmdots = eval(sys.argv[1])
+
+    if len(sys.argv)<3:
         driver(logmdots)
+    else:
+        if sys.argv[2]=='1' or sys.argv[2]=='True':
+            driver(logmdots, usefile = True)
+        else:
+            driver(logmdots, usefile = False)
+        
+        
 

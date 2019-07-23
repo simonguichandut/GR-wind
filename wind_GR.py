@@ -50,6 +50,9 @@ def gamma(v):
 def Swz(r):  # Schwartzchild metric term
     return (1-2*GM/c**2/r)
 
+def Lcrit(r,rho,T): # local critical luminosity
+    return LEdd*(kappa0/kappa(rho,T))*Swz(r)**(-1/2)
+
 # -------------------------------------------- Microphysics ----------------------------------------------------
 
 def kappa(rho,T):
@@ -208,7 +211,7 @@ def calculateVars_phi(r, T, phi, inwards=False, return_all=False):
         return u, rho, phi, Lstar
     else:
         L = Lstar/(1+u**2/c**2)/Y(r, u)**2
-        LEdd_loc = LEdd*(kappa0/kappa(rho,T))*Swz(r)**(-1/2)
+        LEdd_loc = Lcrit(r,rho,T)
         E = internal_energy(rho, T)
         P = pressure(rho, T)
         cs = sqrt(cs2(T))
@@ -219,7 +222,6 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electr
 
     # At the end rho will be given as an array, so we need these lines to allow this
     if isinstance(rho, (list, tuple, np.ndarray)):
-        rho_given = 1
         r, T, rho = array(r), array(T), array(rho)  # to allow mathematical operations
 
     u = Mdot/sqrt((4*pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
@@ -231,7 +233,7 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electr
         return u, rho, phi, Lstar
     else:
         L = Lstar/(1+u**2/c**2)/Y(r, u)**2
-        LEdd_loc = LEdd*(kappa0/kappa(rho,T))*Swz(r)**(-1/2)
+        LEdd_loc = Lcrit(r,rho,T)
         E = internal_energy_e(rho, T)
         P = pressure_e(rho, T)
         cs = sqrt(cs2(T))
@@ -548,15 +550,15 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
-# from IO import load_roots
-# x,z = load_roots()
+#from IO import load_roots
+#x,z = load_roots()
 
-# err1,err2=MakeWind(z[-1],x[-1], Verbose=True)
+#err1,err2=MakeWind(z[-1],x[-1], Verbose=True)
 # # err1,err2=MakeWind([1.02568, 7.314739],18.5, Verbose=True)
 # # err1,err2=MakeWind([1.02,7.1],18.9)
 # # err1,err2=MakeWind([1.025088,7.192513],18.5)
 # print(err1,err2) 
-
-# for logmdot,root in zip(x,z):
-#     err1,err2=MakeWind(root,logmdot)
-#     print(err1,err2)
+#
+#for logmdot,root in zip(x,z):
+#    err1,err2=MakeWind(root,logmdot)
+#    print(err1,err2)
