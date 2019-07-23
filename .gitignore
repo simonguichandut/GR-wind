@@ -33,3 +33,5 @@ envelope/
 .vscode/
 
 energy_contributions.py
+
+electron_eqs.py
