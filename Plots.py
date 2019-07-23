@@ -122,7 +122,7 @@ for logMdot, root in zip(logMDOTS, roots):
 
         i += 1
 
-for ax in (ax2,ax3,ax4,ax5,ax7,ax8):
+for ax in (ax1,ax2,ax3,ax4,ax5,ax7,ax8):
         ax.legend(title=r'log $\dot{M}$ (g/s)', loc='best')
 
 # Additionnal plots

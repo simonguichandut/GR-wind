@@ -31,3 +31,5 @@ envelope/
 *.gif
 
 .vscode/
+
+energy_contributions.py
