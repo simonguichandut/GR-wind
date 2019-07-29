@@ -152,7 +152,7 @@ def save_plots(figs,fignames,img):
 
 
 
-def clean_rootfile():
+def clean_rootfile(warning=1):
 
     # Find duplicates, and remove all but the latest root (assuming the last one is the correct one)
     # Sort from lowest to biggest
@@ -172,7 +172,10 @@ def clean_rootfile():
         for i in v:
             new_roots.append(roots[i])
             
-        o = input('Roots file will be overwritten. Proceed? (0 or 1) ')
+        if warning:
+            o = input('Roots file will be overwritten. Proceed? (0 or 1) ')
+        else:
+            o = 1
         if o:
             filename = get_name()
             path = 'wind_solutions/sols_' + filename + '.txt'
