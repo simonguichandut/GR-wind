@@ -8,6 +8,7 @@ from numpy import linspace, sqrt, log10, array, pi
 from IO import load_params
 import os
 from lsoda_remove import stdout_redirected
+use_lsoda_remove = True
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
@@ -124,10 +125,13 @@ def internal_energy_e(rho, T):  # ideal gas + radiation + electrons
     _,Ue,_ = electrons(rho,T)
     return 1.5*cs2_I(T)*rho + arad*T**4 + Ue
 
-def Beta_e(rho, T):  # pressure ratio (ions/(ions+radiation))
-    Pg = rho*cs2_I(T)
-    Pr = arad*T**4/3.0
-    return Pg/(Pg+Pr)
+def Beta_I(rho, T):
+    pg = rho*cs2_I(T)
+    return pg/pressure_e(rho,T)
+
+def Beta_e(rho, T):
+    pe,_,_ = electrons(rho,T)
+    return pe/pressure_e(rho,T)
 
 def H_e(rho, T):  # eq 2c
     return c**2 + (internal_energy_e(rho, T)+pressure_e(rho, T))/rho
@@ -142,8 +146,8 @@ def B_e(rho,T):
 
 def C_e(Lstar, T, r, rho, v):  
     pe,_,[alpha1,alpha2,f] = electrons(rho,T)
-    return Tstar(Lstar, T, r, rho, v) * ((4-3*Beta_e(rho, T))/(1-Beta_e(rho, T)) + 3*pe*alpha1/(arad*T**4)) * arad*T**4/(3*rho)
-
+    bi,be = Beta_I(rho, T), Beta_e(rho, T)
+    return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
 def uphi(phi, T, inwards):
@@ -317,9 +321,14 @@ def outerIntegration(Ts, returnResult=False):
     inic = [Ts, 2.0]
     r_outer = 50*rs
     r = np.linspace(rs, r_outer, 5000)
-    with stdout_redirected():
+    if use_lsoda_remove:
+        with stdout_redirected():
+            result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
+                            rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
+    else:
         result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
                         rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
+        
 
     # odeint does not support stop conditions (should switch to scipy.integrate.ode, dopri5 integrator, with solout option)
     # For now, just cut the solution where the first NaN appears
@@ -405,7 +414,11 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
         print('\n**** Running innerIntegration RHO ****')
 
     inic = [T95, r95]
-    with stdout_redirected(): 
+    if use_lsoda_remove:
+        with stdout_redirected(): 
+            result,info = odeint(drho, inic, rho, atol=1e-6, 
+                            rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
+    else:
         result,info = odeint(drho, inic, rho, atol=1e-6, 
                         rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
     flag = 0
@@ -550,6 +563,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
+#use_lsoda_remove = 0
 #from IO import load_roots
 #x,z = load_roots()
 

@@ -190,8 +190,8 @@ def driver(logmdots,usefile=1):
     print('Found roots for these values :',success)
     print('There were problems for these values :',problems)
 
-    if len(success)>=1 and input('\nClean updated root file? (0 or 1) '):
-        clean_rootfile()
+    if len(success)>=1 and input('\nClean (overwrite) updated root file? (0 or 1) '):
+        clean_rootfile(warning=0)
     
 
 
