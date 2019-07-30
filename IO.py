@@ -185,6 +185,27 @@ def clean_rootfile(warning=1):
                 save_root(x,y)
             
 
+
+def export_values(target='./'):
+
+    # Export useful values for analysis for each Mdot to a text file at target directory
+    # Current values are : Rb,Tb,Rhob,Pb,Lb,Lb*,Rphot,Tphot,Rhophot,Lphot,Lphot*,rs
+
+    if target[-1]!='/': target += '/'
+    logMDOTS,_ = load_roots()
+
+    with open(target+'wind_values.txt','w') as f:
+
+        f.write('{:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \n'.format(
+            'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)'))
+
+        for x in logMDOTS:
+            r,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs = read_from_file(x)
+            f.write('%0.2f \t\t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \n'%
+                (x,r[0]*1e5,T[0],rho[0],P[0],L[0],Lstar[0],r[-1]*1e5,T[-1],rho[-1],L[-1],Lstar[-1],rs))
+
+export_values('../../compare')
+
 # def pickle_save(name):
     
 #     # Save all arrays into pickle file
