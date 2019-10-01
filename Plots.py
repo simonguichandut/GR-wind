@@ -36,6 +36,9 @@ clean_rootfile()
 logMDOTS,roots = load_roots()
 
 
+save=0
+
+
 ########## PLOTS ###########
 def set_style():
     plt.style.use(['seaborn-talk'])

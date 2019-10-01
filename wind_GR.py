@@ -157,7 +157,7 @@ def uphi(phi, T, inwards):
     where the difference between the velocity and sound speed at the critical point
     (vs=sqrt(B)/sqrt(A)=0.999cs) is taken into account : phi = sqrt(A)*mach + 1/sqrt(A)/mach '''
 
-    if phi < 2.0:
+    if phi < 2.0:   
         u = 1.0*sqrt(B(T)/sqrt(A(T)))
     else:
         if inwards:
@@ -563,9 +563,9 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
-#use_lsoda_remove = 0
-#from IO import load_roots
-#x,z = load_roots()
+# use_lsoda_remove = 0
+# from IO import load_roots
+# x,z = load_roots()
 
 #err1,err2=MakeWind(z[-1],x[-1], Verbose=True)
 # # err1,err2=MakeWind([1.02568, 7.314739],18.5, Verbose=True)
@@ -573,6 +573,6 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 # # err1,err2=MakeWind([1.025088,7.192513],18.5)
 # print(err1,err2) 
 #
-#for logmdot,root in zip(x,z):
+# for logmdot,root in zip(x,z):
 #    err1,err2=MakeWind(root,logmdot)
-#    print(err1,err2)
+#    print('%.3e \t-\t %.3e\n'%(err1,err2))
