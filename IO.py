@@ -200,11 +200,12 @@ def export_values(target='./'):
 
     if target[-1]!='/': target += '/'
     logMDOTS,_ = load_roots()
+    M,R,y_inner,tau_out,comp,mode,save,img = load_params()
 
     from scipy.interpolate import interp1d
     from scipy.integrate import quad
 
-    with open(target+'wind_values.txt','w') as f:
+    with open(target+'wind_values_'+comp+'.txt','w') as f:
 
         f.write(('{:<11s} \t '*16+'{:<11s}\n').format(
             'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)'))
@@ -241,7 +242,7 @@ def export_values(target='./'):
 
             Min,err1 = quad(mass_in_shell, r[0]*1e5 , rs, epsrel=1e-5)
             Mout,err2 = quad(mass_in_shell, rs , r[-1]*1e5, epsrel=1e-5)
-            print(Min/Mout)
+            # print(Min/Mout)
 
 
             f.write(('%0.2f \t\t '+'%0.6e \t '*15 + '%0.6e\n')%
