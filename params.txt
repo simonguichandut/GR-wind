@@ -5,7 +5,7 @@ R	12		[km]
 --- Wind ---
 y_inner 1e8		[g/cm2]
 tau_out 3		
-comp	Ni		[He or Ni..]
+comp	He		[He or Ni..]
 
 --- Code ---
 mode	rootsolve	[rootsolve or wind]
