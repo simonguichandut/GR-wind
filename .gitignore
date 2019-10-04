@@ -2,36 +2,8 @@
 
 /__pycache__
 
-Pe.py
-
-activitylog.txt
-
-/errorspaces
-
-errorspaces.py
-
-temp.py
-
-/misc_plots
-
-analysis.py
-
-*.mp4
+.vscode/
 
 light_curve/
 
-opacity.py
-
-temp2.py
-
-analysis2.py
-
-envelope/
-
-*.gif
-
-.vscode/
-
-energy_contributions.py
-
-electron_eqs.py
+misc_plots/

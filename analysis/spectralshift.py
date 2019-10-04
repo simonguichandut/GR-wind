@@ -1,3 +1,6 @@
+import sys
+sys.path.append('.')  
+
 import numpy as np
 import matplotlib.pyplot as plt
 from IO import read_from_file,load_params
