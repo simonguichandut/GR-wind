@@ -41,7 +41,7 @@ def get_map(logMDOT):
     print('\n\nFINISHED \nMap file saved to ',filename)    
 
 
-def plot_map(logMDOT):
+def plot_map(logMDOT,img='png'):
 
     filename = 'analysis/errorspaces/save'+str(logMDOT)+'.p'
     [Edotvals,Tsvals,Errors]=pickle.load(open(filename,'rb'))
@@ -62,7 +62,7 @@ def plot_map(logMDOT):
 
     # Option 2
     cmap = plt.get_cmap('YlOrRd') # diverging colormap (white at bottom)
-    levs=np.logspace(-3,1,100)
+    levs=np.logspace(-3,1,50)
     im1 = ax1.contourf(Edotvals,Tsvals,np.abs(array(Errors[0])),levs,norm=colors.LogNorm(),cmap=cmap)
     im2 = ax2.contourf(Edotvals,Tsvals,np.abs(array(Errors[1])),levs,norm=colors.LogNorm(),cmap=cmap)
     fig.colorbar(im1,ax=ax1,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
@@ -80,12 +80,35 @@ def plot_map(logMDOT):
     ax1.set_ylim([Tsvals[0],Tsvals[-1]])  
     ax2.set_xlim([Edotvals[0],Edotvals[-1]])
     ax2.set_ylim([Tsvals[0],Tsvals[-1]])     
+
+    plt.tight_layout()
     
-    fig.savefig('analysis/errorspaces/'+str(logMDOT)+'.png')    
+    filename = str(logMDOT).replace('.','_') # dont want points in filenames
+    fig.savefig('analysis/errorspaces/'+filename+'.'+img)    
 
-
+# indivual call
 # get_map(17.75)
-plot_map(17.75)
+# plot_map(17.75)
+
+
+# command line call
+if len(sys.argv)>1:
+            
+    mode = sys.argv[1]
+    logMdot = sys.argv[2]
+
+    if mode=='get':
+        get_map(eval(logMdot))
+    elif mode=='plot':
+        img = 'png' if len(sys.argv)<4 else sys.argv[3]
+        plot_map(eval(logMdot),img=img)
+    
+        
+
+
+
+
+
 
 # for m in [18,18.25,18.5,18.75,19]:
 #         plot_map(m)

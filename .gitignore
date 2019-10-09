@@ -4,10 +4,18 @@
 
 .vscode/
 
-light_curve/
-
 misc_plots/
 
-envelope/
-
 activitylog.txt
+
+wind_values*
+
+analysis/__pycache__/
+
+analysis/light_curve/
+
+analysis/envelope/
+
+analysis/misc_plots
+
+He_grid_with_winds
