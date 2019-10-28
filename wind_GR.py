@@ -251,7 +251,6 @@ def dr(inic, r, inwards):
 
     T, phi = inic[:2]
     u, rho, phi, Lstar = calculateVars_phi(r, T, phi=phi, inwards=inwards)
-    mach = u/sqrt(B(T))
 
     ## OPTION 1
     # if r == rs or phi < 2:

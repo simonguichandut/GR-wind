@@ -83,8 +83,9 @@ ax7.set_ylabel(r'$\kappa$')
 # Density-Optical depth
 fig8, ax8 = plt.subplots(1, 1)
 ax8.set_xlabel(r'$\rho$ (g cm$^{-3}$)')
-ax8.set_ylabel(r'$\tau$')
-ax8.axhline(1)
+ax8.set_ylabel(r'$\tau^*=\kappa\rho r$')
+ax8.axhline(3,color='k')
+ax8.set_ylim([0.5,2e10])
 
 Lbs = []  # base luminosity, redshifted to infinity
 colors = ['r', 'b', 'g', 'k', 'm']
