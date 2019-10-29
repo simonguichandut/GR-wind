@@ -9,6 +9,7 @@ Edot = 1.025426*LEdd # from solutions
 
 from IO import *
 R0,u0,cs0,rho0,T0,P0,phi0,L0,Lstar0,E0,tau0,rs0=read_from_file(logMdot)
+# print(R0[0],u0[0],cs0[0])
 r0,u0,cs0=R0*1e5,u0*1e5,cs0*1e5
 
 
@@ -68,6 +69,8 @@ def drFLD(r, T, u, Tprev, rprev):
     Lam = lamfunc(E,dE,rho,T)
     # print(Lam)
 
+    q = 4*arad*T**4/(3*rho) # radiation pressure + energy term divided by rho. comes up a lot
+
     dlnT_dlnr = -kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Lam)
     # dlnu_dlnr = ( GM/r + (B(T)+4*arad*T**4/3/rho)*dlnT_dlnr - 2*B(T) ) / (B(T) - u**2*(A(T)+B(T)/c**2) )+ gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho ) 
     dlnu_dlnr = ( GM/r/Swz(r) + (B(T)+4*arad*T**4/3/rho)*dlnT_dlnr - 2*B(T) ) / (B(T) - u**2 + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho ) 
@@ -75,7 +78,7 @@ def drFLD(r, T, u, Tprev, rprev):
     dlnu_dlnr_pac = gamma(u)**(-2) * (GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, u) - 2*B(T)) / (B(T)-u**2*A(T))
 
     # keeping all terms
-    num = (c**2+2.5*B(T)+4*arad*T**4/3/rho)*GM/r/c**2/Swz(r) + (B(T)+4*arad*T**4/3/rho)*dlnT_dlnr - B(T)*(2+GM/r/c**2/Swz(r))
+    num = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
     denom = (B(T) - u**2*(A(T)+B(T)/c**2) + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho )
     dlnu_dlnr2 = num/denom
 
