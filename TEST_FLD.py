@@ -71,19 +71,40 @@ def drFLD(r, T, u, Tprev, rprev):
 
     q = 4*arad*T**4/(3*rho) # radiation pressure + energy term divided by rho. comes up a lot
 
+    # FLD temperature gradient
     dlnT_dlnr = -kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Lam)
-    # dlnu_dlnr = ( GM/r + (B(T)+4*arad*T**4/3/rho)*dlnT_dlnr - 2*B(T) ) / (B(T) - u**2*(A(T)+B(T)/c**2) )+ gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho ) 
-    dlnu_dlnr = ( GM/r/Swz(r) + (B(T)+4*arad*T**4/3/rho)*dlnT_dlnr - 2*B(T) ) / (B(T) - u**2 + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho ) 
 
+    # Paczynski velocity gradient
     dlnu_dlnr_pac = gamma(u)**(-2) * (GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, u) - 2*B(T)) / (B(T)-u**2*A(T))
 
-    # keeping all terms
+    # FLD velocity gradient - keeping all terms
     num = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
     denom = (B(T) - u**2*(A(T)+B(T)/c**2) + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho )
+    dlnu_dlnr = num/denom
+
+    # removing terms that are insignificant (?)
+    num = gamma(u)**(-2) * ( GM/(r*Swz(r)) + (B(T)+q)*dlnT_dlnr - B(T)*2 ) 
+    denom = B(T) - u**2*A(T)
     dlnu_dlnr2 = num/denom
 
-    print('\n %.3f \t %.3f \t %.3f'%(dlnu_dlnr,dlnu_dlnr_pac,dlnu_dlnr2))
-    print(Swz(r))
+    # Keeping all terms but adding a gamma^(-1) to dT/dr
+    num = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr/gamma(u) - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
+    denom = (B(T) - u**2*(A(T)+B(T)/c**2) + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho )
+    dlnu_dlnr3 = num/denom
+
+    # Keeping all terms but adding a Y^(-1) to dT/dr
+    num = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr/Y(r,u) - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
+    denom = (B(T) - u**2*(A(T)+B(T)/c**2) + gamma(u)**2*u**2/r/c**2 * 4*arad*T**4/3/rho )
+    dlnu_dlnr4 = num/denom
+
+
+    # print((B(T)+q)  , q/4 * (4-3*Beta(rho,T))/(1-Beta(rho,T)))  # SAME OK
+    # print( 3*kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4)/Y(r,u), Tstar(Lstar,T,r,rho,u))  # SAME IF PUT Y
+    # print(Y(r,u))
+    print( (B(T)+q)*dlnT_dlnr/Y(r,u) , C(Lstar,T,r,rho,u)) # SAME!
+    print( GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, u) , (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r))+ (B(T)+q)*dlnT_dlnr/Y(r,u))
+    print('pac \t all terms \t rm "small"  \t gamma \t\t Y')
+    print('%.3f \t %.3f \t %.3f \t %.3f \t %.3f\n'%(dlnu_dlnr_pac,dlnu_dlnr,dlnu_dlnr2,dlnu_dlnr3,dlnu_dlnr4))
 
     # dlnT_dlnr_other = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
     # dlnT_dlnr_other = -3*kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4)
@@ -116,14 +137,15 @@ for ax in (ax1,ax2,ax3,ax4,ax5,ax6):
     ax.axvline(rs0,alpha=0.5)
 
 # i0 = np.argwhere(r0==rs0)[0][0]  # first try from sonic point
-# i0 = np.argmin(np.abs(r0-(rs0+10e5)))  # second try 10 km above sonic point
-i0 = np.argmin(np.abs(r0-(rs0+100e5)))  # third try 100 km above sonic point
+i0 = np.argmin(np.abs(r0-(rs0+10e5)))  # second try 10 km above sonic point
+# i0 = np.argmin(np.abs(r0-(rs0+50e5)))  # third try 50 km above sonic point
 
 
 
 r,T,u,rho,L,Lam,tau= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-1],lam0[i0]], [tau0[i0-1],tau0[i0]]
 
 dr = 1e3     # 10m stepsize
+i=0
 while r[-1]<1000e5: # go to 3000km
 
     dT_dr,du_dr,LLam = drFLD(r[-1],T[-1],u[-1],T[-2],r[-2])
@@ -148,15 +170,19 @@ while r[-1]<1000e5: # go to 3000km
 
     print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(r[-1]/1e5,T[-1],rho[-1]))
 
+    i+=1
+    if i==3: break
 
-ax1.loglog(r,T,'b-')
-ax2.loglog(r,rho,'b-')
-ax3.semilogx(r,np.array(L)/LEdd,'b-')
-ax4.loglog(r,tau,'b-')
-ax5.loglog(r,u,'b.-')
-ax6.semilogx(r,Lam,'b-')
+print('\n\n')
 
-plt.tight_layout()
-plt.show()
+# ax1.loglog(r,T,'b-')
+# ax2.loglog(r,rho,'b-')
+# ax3.semilogx(r,np.array(L)/LEdd,'b-')
+# ax4.loglog(r,tau,'b-')
+# ax5.loglog(r,u,'b.-')
+# ax6.semilogx(r,Lam,'b-')
+
+# plt.tight_layout()
+# plt.show()
 
 # """
