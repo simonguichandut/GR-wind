@@ -12,6 +12,10 @@ R0,u0,cs0,rho0,T0,P0,phi0,L0,Lstar0,E0,tau0,rs0=read_from_file(logMdot)
 # print(R0[0],u0[0],cs0[0])
 r0,u0,cs0=R0*1e5,u0*1e5,cs0*1e5
 
+# fig,ax=plt.subplots(1,1)
+# ax.loglog(r0,Lstar0*(1+u0**2/c**2)**(-1)*Y(r0,u0)**(-2))
+# ax.loglog(r0,L0)
+# plt.show()
 
 
 # Constants
@@ -33,6 +37,9 @@ def lamfunc(E,dE,rho,T):
 
 # first pass through the data
 RR0,lam0 = [],[]
+
+pacnum1,pacnum2,pacnum2b,pacnum,pacdenom,fldnum1,fldnum2,fldnum,flddenom = [[] for i in range(9)]
+
 for i,ri in enumerate(r0[1:]):
     E=arad*T0[i]**4
     Eprev=arad*T0[i-1]**4
@@ -40,18 +47,63 @@ for i,ri in enumerate(r0[1:]):
     RR0.append(Rfunc(E,dE,rho0[i],T0[i]))
     lam0.append(lamfunc(E,dE,rho0[i],T0[i]))
 
+    ### dvdr equation terms
+
+    # stuff
+    ai,bi = A(T0[i]), B(T0[i])
+
+    # pac
+    pacnum1.append( GM/ri/Swz(ri) * (ai-bi/c**2) )  
+    pacnum2.append( C(Lstar0[i], T0[i], ri, rho0[i], u0[i]) )
+    # copy pasting the code from wind_GR in below line. verified it's the exact same
+    # pacnum2.append( Lstar0[i]/LEdd * kappa(rho0[i],T0[i])/kappa0 * GM/(4*ri) * 3*rho0[i]/(arad*T0[i]**4) * (1+(u0[i]/c)**2)**(-1) * Y(ri,u0[i])**(-3)* arad*T0[i]**4/(3*rho0[i]) * (4-3*Beta(rho0[i],T0[i]))/(1-Beta(rho0[i],T0[i])) )
+    
+    # pacnum2b.append( 3*kappa(rho0[i],T0[i])*rho0[i]*L0[i] / (16*pi*ri*arad*c*T0[i]**4*Y(ri,u0[i])) * arad*T0[i]**4/(3*rho0[i]) * (4-3*Beta(rho0[i],T0[i]))/(1-Beta(rho0[i],T0[i])) )
+    # print(pacnum2b[-1]/pacnum2[-1])
+    pacnum.append( gamma(u0[i]) * (pacnum1[-1] - pacnum2[-1] - 2*bi) )
+    pacdenom.append( bi - u0[i]**2*ai )
+
+    # FLD
+    dlnT_dlnr = -kappa(rho0[i],T0[i])*rho0[i]*L0[i]/(16*pi*ri*arad*c*T0[i]**4*lam0[i])
+    q = 4*arad*T0[i]**4/(3*rho0[i])
+    fldnum1.append( (c**2 + 2.5*bi +q )*GM/(ri*c**2*Swz(ri)) )
+    fldnum2.append( (bi+q)*dlnT_dlnr/Y(ri,u0[i]))
+    # fldnum1.append( GM/(ri*Swz(ri)) )
+    # fldnum2.append( (bi+q)*dlnT_dlnr/Y(ri,u0[i])*3*lam0[i] )
+    fldnum.append( gamma(u0[i]) * (fldnum1[-1] + fldnum2[-1] - bi*(2+GM/(ri*c**2*Swz(ri)))) )
+    flddenom.append( bi - u0[i]**2*(ai+bi/c**2) + gamma(u0[i])**2*u0[i]**2/ri/c**2 * q  )
+
+    print(bi/c**2,q/c**2)
+    # print(pacnum2[-1]/fldnum2[-1])
+
 # fig,ax=plt.subplots(1,1)
 # ax.semilogx(r0[1:]/1e5,RR0,'k-')
 # ax.set_xlabel('r (km)')
 # ax.set_ylabel(r'$R=|\nabla E_R|/(\rho\kappa E_R)$',fontsize=14)
-# ax2=ax.twinx()
-# ax2.semilogx(r0[1:]/1e5,lam0,'b-')
-# ax2.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',color='b',fontsize=14)
+# axb=ax.twinx()
+# axb.semilogx(r0[1:]/1e5,lam0,'b-')
+# axb.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',color='b',fontsize=14)
 # plt.tight_layout()
 # plt.show()
 
+fig2,(ax2,ax3) = plt.subplots(1,2,figsize=(13,6))
+ax2.set_title('Numerator terms')
+ax2.loglog(r0[1:], np.abs(pacnum1), 'r-')
+ax2.loglog(r0[1:], np.abs(pacnum2), 'b-')
+# ax2.loglog(r0[1:], np.abs(pacnum2b), 'b.')
+ax2.loglog(r0[1:], np.abs(pacnum), 'k-')
+ax2.loglog(r0[1:], np.abs(fldnum1), 'r--')
+ax2.loglog(r0[1:], np.abs(fldnum2), 'b--')
+ax2.loglog(r0[1:], np.abs(fldnum), 'k--')
 
-# """
+ax3.set_title('Denominator terms')
+ax3.loglog(r0[1:], np.abs(pacdenom), 'k-')
+ax3.loglog(r0[1:], np.abs(flddenom), 'k--')
+
+
+plt.show()
+
+"""
 def calcvars2(r,T,u):
     rho = Mdot/(4*pi*r**2*u*Y(r, u))
     Lstar = Edot-Mdot*H(rho, T)*Y(r, u) + Mdot*c**2 
@@ -101,7 +153,7 @@ def drFLD(r, T, u, Tprev, rprev):
     # print((B(T)+q)  , q/4 * (4-3*Beta(rho,T))/(1-Beta(rho,T)))  # SAME OK
     # print( 3*kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4)/Y(r,u), Tstar(Lstar,T,r,rho,u))  # SAME IF PUT Y
     # print(Y(r,u))
-    print( (B(T)+q)*dlnT_dlnr/Y(r,u) , C(Lstar,T,r,rho,u)) # SAME!
+    print( (B(T)+q)*dlnT_dlnr/Y(r,u)*3*Lam , C(Lstar,T,r,rho,u)) # SAME!
     print( GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, u) , (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r))+ (B(T)+q)*dlnT_dlnr/Y(r,u))
     print('pac \t all terms \t rm "small"  \t gamma \t\t Y')
     print('%.3f \t %.3f \t %.3f \t %.3f \t %.3f\n'%(dlnu_dlnr_pac,dlnu_dlnr,dlnu_dlnr2,dlnu_dlnr3,dlnu_dlnr4))
@@ -185,4 +237,4 @@ print('\n\n')
 # plt.tight_layout()
 # plt.show()
 
-# """
+"""

@@ -120,7 +120,7 @@ def write_to_file(logMdot,data):
 
 def read_from_file(logMdot):
 
-    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau and sonic point rs'''
+    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau and sonic point rs. r,u and cs are in km!'''
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
