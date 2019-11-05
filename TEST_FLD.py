@@ -60,20 +60,20 @@ for i,ri in enumerate(r0[1:]):
     
     # pacnum2b.append( 3*kappa(rho0[i],T0[i])*rho0[i]*L0[i] / (16*pi*ri*arad*c*T0[i]**4*Y(ri,u0[i])) * arad*T0[i]**4/(3*rho0[i]) * (4-3*Beta(rho0[i],T0[i]))/(1-Beta(rho0[i],T0[i])) )
     # print(pacnum2b[-1]/pacnum2[-1])
-    pacnum.append( gamma(u0[i]) * (pacnum1[-1] - pacnum2[-1] - 2*bi) )
+    pacnum.append( gamma(u0[i])**(-2) * (pacnum1[-1] - pacnum2[-1] - 2*bi) )
     pacdenom.append( bi - u0[i]**2*ai )
 
     # FLD
     dlnT_dlnr = -kappa(rho0[i],T0[i])*rho0[i]*L0[i]/(16*pi*ri*arad*c*T0[i]**4*lam0[i])
     q = 4*arad*T0[i]**4/(3*rho0[i])
     fldnum1.append( (c**2 + 2.5*bi +q )*GM/(ri*c**2*Swz(ri)) )
-    fldnum2.append( (bi+q)*dlnT_dlnr/Y(ri,u0[i]))
+    fldnum2.append( (bi+q)*dlnT_dlnr)#/Y(ri,u0[i]))
     # fldnum1.append( GM/(ri*Swz(ri)) )
     # fldnum2.append( (bi+q)*dlnT_dlnr/Y(ri,u0[i])*3*lam0[i] )
-    fldnum.append( gamma(u0[i]) * (fldnum1[-1] + fldnum2[-1] - bi*(2+GM/(ri*c**2*Swz(ri)))) )
+    fldnum.append( gamma(u0[i])**(-2) * (fldnum1[-1] + fldnum2[-1] - bi*(2+GM/(ri*c**2*Swz(ri)))) )
     flddenom.append( bi - u0[i]**2*(ai+bi/c**2) + gamma(u0[i])**2*u0[i]**2/ri/c**2 * q  )
 
-    print(bi/c**2,q/c**2)
+    # print(bi/c**2,q/c**2)
     # print(pacnum2[-1]/fldnum2[-1])
 
 # fig,ax=plt.subplots(1,1)
@@ -86,35 +86,35 @@ for i,ri in enumerate(r0[1:]):
 # plt.tight_layout()
 # plt.show()
 
-fig2,(ax2,ax3) = plt.subplots(1,2,figsize=(13,6))
-ax2.set_title('Numerator terms')
-ax2.loglog(r0[1:], np.abs(pacnum1), 'r-')
-ax2.loglog(r0[1:], np.abs(pacnum2), 'b-')
-# ax2.loglog(r0[1:], np.abs(pacnum2b), 'b.')
-ax2.loglog(r0[1:], np.abs(pacnum), 'k-')
-ax2.loglog(r0[1:], np.abs(fldnum1), 'r--')
-ax2.loglog(r0[1:], np.abs(fldnum2), 'b--')
-ax2.loglog(r0[1:], np.abs(fldnum), 'k--')
+# fig2,(ax2,ax3) = plt.subplots(1,2,figsize=(13,6))
+# ax2.set_title('Numerator terms')
+# ax2.loglog(r0[1:], np.abs(pacnum1), 'r-')
+# ax2.loglog(r0[1:], np.abs(pacnum2), 'b-')
+# # ax2.loglog(r0[1:], np.abs(pacnum2b), 'b.')
+# ax2.loglog(r0[1:], np.abs(pacnum), 'k-')
+# ax2.loglog(r0[1:], np.abs(fldnum1), 'r--')
+# ax2.loglog(r0[1:], np.abs(fldnum2), 'b--')
+# ax2.loglog(r0[1:], np.abs(fldnum), 'k--')
 
-ax3.set_title('Denominator terms')
-ax3.loglog(r0[1:], np.abs(pacdenom), 'k-')
-ax3.loglog(r0[1:], np.abs(flddenom), 'k--')
+# ax3.set_title('Denominator terms')
+# ax3.loglog(r0[1:], np.abs(pacdenom), 'k-')
+# ax3.loglog(r0[1:], np.abs(flddenom), 'k--')
 
 
-plt.show()
+# plt.show()
 
 """
-def calcvars2(r,T,u):
+def calcvars_u(r,T,u):
     rho = Mdot/(4*pi*r**2*u*Y(r, u))
     Lstar = Edot-Mdot*H(rho, T)*Y(r, u) + Mdot*c**2 
     L = Lstar/(1+u**2/c**2)/Y(r, u)**2
     return rho,Lstar,L
 
-def drFLD(r, T, u, Tprev, rprev):
+def drFLD(r, T, U, Tprev, rprev):
 
     ''' applying FLD and assuming relativstic terms are small '''
 
-    rho,Lstar,L = calcvars2(r,T,u)
+    rho,Lstar,L = calcvars_u(r,T,u)
 
     E,Eprev = arad*T**4, arad*Tprev**4
     dE = (E-Eprev)/(r-rprev)
@@ -238,3 +238,116 @@ print('\n\n')
 # plt.show()
 
 """
+
+
+
+
+
+# Integrating with the phi variable instead
+
+def calcvars_phi(r,T,phi):
+    u = uphi(phi,T,inwards=False)
+    rho = Mdot/(4*pi*r**2*u*Y(r, u))
+    Lstar = Edot-Mdot*H(rho, T)*Y(r, u) + Mdot*c**2 
+    L = Lstar/(1+u**2/c**2)/Y(r, u)**2
+    return u,rho,Lstar,L
+
+def drFLD(r, T, phi, Tprev, rprev):
+
+    ''' applying FLD and assuming relativstic terms are small '''
+
+    u,rho,Lstar,L = calcvars_phi(r,T,phi)
+
+    E,Eprev = arad*T**4, arad*Tprev**4
+    dE = (E-Eprev)/(r-rprev)
+    Lam = lamfunc(E,dE,rho,T)
+    a,b = A(T),B(T)
+    mach = u/np.sqrt(b)
+
+    # FLD temperature gradient
+    dlnT_dlnr = -kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Lam)
+
+    # Paczynski phi gradient
+    dlnT_dlnr_pac = dlnT_dlnr*3*Lam/Y(r,u)
+    num_pac = gamma(u)**(-2) * (GM/r/Swz(r) * (a-b/c**2) - C(Lstar, T, r, rho, u) -2*b)
+    dphi_dr_pac = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr_pac  -  num_pac/(u*r*np.sqrt(a*b))
+
+    # FLD phi gradient
+    q = 4*arad*T**4/(3*rho) # radiation pressure + energy term divided by rho.
+    num_fld = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
+    dphi_dr = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr  -  num_fld/(u*r*np.sqrt(a*b))
+
+    print(dphi_dr_pac,dphi_dr)
+
+    dT_dr = T/r * dlnT_dlnr
+
+    return dT_dr,dphi_dr,Lam
+
+
+
+fig,[[ax1,ax2,ax3],[ax4,ax5,ax6]] = plt.subplots(2,3,figsize=(16,10))
+ax1.loglog(r0,T0,'k-',linewidth=0.8)
+ax2.loglog(r0,rho0,'k-',linewidth=0.8)
+ax3.semilogx(r0,L0/LEdd,'k-',linewidth=0.8)
+ax4.loglog(r0,phi0,'k-',linewidth=0.8)
+ax5.loglog(r0,u0,'k-',linewidth=0.8)
+ax6.semilogx(r0[1:],lam0,'k-',linewidth=0.8)
+ax4.set_xlabel(r'$r$ (cm)',fontsize=14)
+ax5.set_xlabel(r'$r$ (cm)',fontsize=14)
+ax6.set_xlabel(r'$r$ (cm)',fontsize=14)
+ax1.set_ylabel(r'$T$ (K)',fontsize=14)
+ax2.set_ylabel(r'$\rho$ (g cm$^{-3}$)',fontsize=14)
+ax3.set_ylabel(r'$L/L_{E}$',fontsize=14)
+ax4.set_ylabel(r'$\phi$',fontsize=14)
+ax5.set_ylabel(r'$u$ (cm/s)',fontsize=14)
+ax6.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',fontsize=14)
+for ax in (ax1,ax2,ax3,ax4,ax5,ax6):
+    ax.axvline(rs0,alpha=0.5)
+
+i0 = np.argmin(np.abs(r0-(rs0+50e5)))  # second try 50 km above sonic point
+
+
+
+r,T,u,rho,L,Lam,tau,phi= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-1],lam0[i0]], [tau0[i0-1],tau0[i0]] , [phi0[i0-1],phi0[i0]]
+
+dr = 1e5     # 10m stepsize
+i=0
+while r[-1]<1000e5: # go to 3000km
+
+    dT_dr,dphi_dr,LLam = drFLD(r[-1],T[-1],phi[-1],T[-2],r[-2])
+    r.append(r[-1]+dr)
+    T.append(T[-1]+dT_dr*dr)
+    phi.append(phi[-1]+dphi_dr*dr)
+    Lam.append(LLam)
+
+    ui,rhoi,Lstari,Li = calcvars_phi(r[-1],T[-1],phi[-1])
+    u.append(ui)
+    rho.append(rhoi)
+    L.append(Li)
+    tau.append(rhoi*kappa(rhoi,T[-1])*r[-1])
+
+    if T[-1]<0:
+        break
+
+    # ax1.loglog(r[-1],T[-1],'b.')
+    # ax2.loglog(r[-1],rho[-1],'b.')
+    # ax3.semilogx(r[-1],L[-1]/LEdd,'b.')
+    # ax4.loglog(r[-1],phi[-1],'b.')
+    # plt.pause(0.01)
+
+    print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(r[-1]/1e5,T[-1],rho[-1]))
+
+    i+=1
+    if i==3: break
+
+print('\n\n')
+
+ax1.loglog(r,T,'b-')
+ax2.loglog(r,rho,'b-')
+ax3.semilogx(r,np.array(L)/LEdd,'b-')
+ax4.loglog(r,phi,'b-')
+ax5.loglog(r,u,'b.-')
+ax6.semilogx(r,Lam,'b-')
+
+plt.tight_layout()
+plt.show()
