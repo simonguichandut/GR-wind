@@ -58,6 +58,7 @@ for i,ri in enumerate(r0[1:]):
     ai,bi = A(T0[i]), B(T0[i])
 
     # pac
+    dlnT_dlnr_pac = -3*kappa(rho0[i],T0[i])*rho0[i]*L0[i]/(16*pi*ri*arad*c*T0[i]**4*Y(ri,u0[i])) - 1/Swz(ri) * GM/c**2/ri  # -dlny/dlnr but we neglect that in the pac solver
     pacnum1.append( GM/ri/Swz(ri) * (ai-bi/c**2) )  
     pacnum2.append( C(Lstar0[i], T0[i], ri, rho0[i], u0[i]) )
     # copy pasting the code from wind_GR in below line. verified it's the exact same
@@ -69,11 +70,20 @@ for i,ri in enumerate(r0[1:]):
     pacdenom.append( bi - u0[i]**2*ai )
 
     # FLD  (MODIFIED!)
-    dlnT_dlnr = -kappa(rho0[i],T0[i])*rho0[i]*L0[i]/(16*pi*ri*arad*c*T0[i]**4*lam0[i]*Y(ri,u0[i]))  # -dlny/dlnr but we neglect that in the pac solver
+    dlnT_dlnr_fld = -kappa(rho0[i],T0[i])*rho0[i]*L0[i]/(16*pi*ri*arad*c*T0[i]**4*lam0[i]*Y(ri,u0[i]))  - 1/Swz(ri) * GM/c**2/ri # - (u/c)**2 dlnv/dlnr but we neglect that in the pac solver
     fldnum1.append( pacnum1[-1] )
     fldnum2.append( pacnum2[-1]/3/lam0[i] )
     fldnum.append( fldnum1[-1] - fldnum2[-1] - 2*bi ) 
     flddenom.append( bi - u0[i]**2*ai )
+
+
+
+    # Checking the phi derivative terms
+    mach = u0[i]/np.sqrt(bi)
+    # dphi_dr = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
+
+    pacdphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_pac  -  pacnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
+    flddphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_fld  -  fldnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
 
 
 
@@ -86,23 +96,34 @@ for i,ri in enumerate(r0[1:]):
 # axb.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',color='b',fontsize=14)
 # plt.tight_layout()
 
-fig2,ax2 = plt.subplots(1,1)
-ax2.axvline(rs0)
+# fig2,ax2 = plt.subplots(1,1)
+# ax2.axvline(rs0)
 
-ax2.set_title('Numerator terms')
-ax2.loglog(r0[1:], pacnum1, 'r-',label=r'K=GMz$^2$/r (A-B/c$^2$)')
-ax2.loglog(r0[1:], pacnum2, 'b-',label='C')
-ax2.loglog(r0[1:], fldnum2, 'b--',label=r'C/3$\lambda$')
-ax2.loglog(r0[1:], 2*B(T0[1:]), 'g-', label='2B')
-ax2.loglog(r0[1:], np.abs(pacnum), 'k-',label='|K-C-2B|')
-ax2.loglog(r0[1:], np.abs(fldnum), 'k--',label=r'|K-C/3$\lambda$-2B|')
-ax2.legend()
+# ax2.set_title('Numerator terms')
+# ax2.loglog(r0[1:], pacnum1, 'r-',label=r'K=GMz$^2$/r (A-B/c$^2$)')
+# ax2.loglog(r0[1:], pacnum2, 'b-',label='C')
+# ax2.loglog(r0[1:], fldnum2, 'b--',label=r'C/3$\lambda$')
+# ax2.loglog(r0[1:], 2*B(T0[1:]), 'g-', label='2B')
+# ax2.loglog(r0[1:], np.abs(pacnum), 'k-',label='|K-C-2B|')
+# ax2.loglog(r0[1:], np.abs(fldnum), 'k--',label=r'|K-C/3$\lambda$-2B|')
+# ax2.legend()
 
 # # plt.yscale('symlog')
 # # ax2.semilogx(r0[1:],pacnum,'k.-')
 
 
 # # ax2.loglog(r0,T0,'b.')
+
+
+fig3,ax3 = plt.subplots(1,1)
+ax3.axvline(rs0)
+
+ax3.set_title('dphi_dr')
+index_rs = np.argmin(np.abs(r0-rs0))
+ax3.semilogx(r0[index_rs-30:], pacdphi[index_rs-31:], 'k-',label=r'pac')
+ax3.semilogx(r0[index_rs-30:], flddphi[index_rs-31:], 'k--',label=r'fld')
+# ax3.set_yscale('symlog')
+ax3.legend()
 
 
 plt.show()

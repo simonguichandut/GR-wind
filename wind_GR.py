@@ -575,9 +575,9 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 # For testing when making modifications to this script
 
-use_lsoda_remove = 0
-from IO import load_roots
-x,z = load_roots()
+# use_lsoda_remove = 0
+# from IO import load_roots
+# x,z = load_roots()
 
 # Just one solution
 # err1,err2=MakeWind(z[20],x[20], Verbose=True)
@@ -585,6 +585,6 @@ x,z = load_roots()
 # print(err1,err2) 
 
 # All solutions
-for logmdot,root in zip(x,z):
-   err1,err2=MakeWind(root,logmdot)
-   print('%.3e \t-\t %.3e\n'%(err1,err2))
+# for logmdot,root in zip(x,z):
+#    err1,err2=MakeWind(root,logmdot)
+#    print('%.3e \t-\t %.3e\n'%(err1,err2))
