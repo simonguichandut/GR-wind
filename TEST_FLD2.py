@@ -15,11 +15,11 @@ R0,u0,cs0,rho0,T0,P0,phi0,L0,Lstar0,E0,tau0,rs0=read_from_file(logMdot)
 # print(R0[0],u0[0],cs0[0])
 r0,u0,cs0=R0*1e5,u0*1e5,cs0*1e5
 
-# fig,ax=plt.subplots(1,1)
-# ax.loglog(r0,Lstar0*(1+u0**2/c**2)**(-1)*Y(r0,u0)**(-2))
-# ax.loglog(r0,L0)
-# plt.show()
-
+# # Are we having problems because numbers in the text file are rounded to "only" 5 decimal places? Instead let's try making the wind directly
+# logMdots,roots = load_roots()
+# i=logMdots.index(logMdot)
+# r0, T0, rho0, u0, phi0, Lstar0, L0, LEdd_loc, E0, P0, cs0, tau0, rs0, Edot0, Ts0 = MakeWind(roots[i],logMdot,mode='wind')
+# # ok no that's not it
 
 # Constants
 kB = 1.380658e-16
@@ -41,7 +41,7 @@ def lamfunc(y3E,dy4E,rho,T):  # same as before
 # first pass through the data
 RR0,lam0 = [],[]
 
-pacnum1,pacnum2,pacnum2b,pacnum,pacdenom,fldnum1,fldnum2,fldnum,flddenom = [[] for i in range(9)]
+pacnum1,pacnum2,pacnum2b,pacnum,pacdenom,fldnum1,fldnum2,fldnum,flddenom,pacdphi,flddphi = [[] for i in range(11)]
 
 for i,ri in enumerate(r0[1:]):
     E=arad*T0[i]**4
@@ -75,18 +75,16 @@ for i,ri in enumerate(r0[1:]):
     fldnum.append( fldnum1[-1] - fldnum2[-1] - 2*bi ) 
     flddenom.append( bi - u0[i]**2*ai )
 
-    # print(bi/c**2,q/c**2)
-    # print(pacnum2[-1]/fldnum2[-1])
 
-fig,ax=plt.subplots(1,1)
-ax.semilogx(r0[1:]/1e5,RR0,'k-')
-ax.set_xlabel('r (km)')
-ax.set_ylabel(r'$R=|\nabla E_R|/(\rho\kappa E_R)$',fontsize=14)
-axb=ax.twinx()
-axb.semilogx(r0[1:]/1e5,lam0,'b-')
-axb.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',color='b',fontsize=14)
-plt.tight_layout()
-# plt.show()
+
+# fig,ax=plt.subplots(1,1)
+# ax.semilogx(r0[1:]/1e5,RR0,'k-')
+# ax.set_xlabel('r (km)')
+# ax.set_ylabel(r'$R=|\nabla E_R|/(\rho\kappa E_R)$',fontsize=14)
+# axb=ax.twinx()
+# axb.semilogx(r0[1:]/1e5,lam0,'b-')
+# axb.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',color='b',fontsize=14)
+# plt.tight_layout()
 
 fig2,ax2 = plt.subplots(1,1)
 ax2.axvline(rs0)
@@ -100,11 +98,11 @@ ax2.loglog(r0[1:], np.abs(pacnum), 'k-',label='|K-C-2B|')
 ax2.loglog(r0[1:], np.abs(fldnum), 'k--',label=r'|K-C/3$\lambda$-2B|')
 ax2.legend()
 
-# plt.yscale('symlog')
-# ax2.semilogx(r0[1:],pacnum,'k.-')
+# # plt.yscale('symlog')
+# # ax2.semilogx(r0[1:],pacnum,'k.-')
 
 
-# ax2.loglog(r0,T0,'b.')
+# # ax2.loglog(r0,T0,'b.')
 
 
 plt.show()
@@ -200,33 +198,33 @@ i0 = np.argmin(np.abs(r0-(rs0+10e5)))  # second try 10 km above sonic point
 
 
 
-r,T,u,rho,L,Lam,tau= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-1],lam0[i0]], [tau0[i0-1],tau0[i0]]
+R,T,u,rho,L,Lam,tau= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-1],lam0[i0]], [tau0[i0-1],tau0[i0]]
 
 dr = 1e3     # 10m stepsize
 i=0
-while r[-1]<1000e5: # go to 3000km
+while R[-1]<1000e5: # go to 3000km
 
-    dT_dr,du_dr,LLam = drFLD(r[-1],T[-1],u[-1],T[-2],r[-2])
-    r.append(r[-1]+dr)
+    dT_dr,du_dr,LLam = drFLD(R[-1],T[-1],u[-1],T[-2],R[-2])
+    R.append(R[-1]+dr)
     T.append(T[-1]+dT_dr*dr)
     u.append(u[-1]+du_dr*dr)
     Lam.append(LLam)
 
-    rhoi,Lstari,Li = calcvars2(r[-1],T[-1],u[-1])
+    rhoi,Lstari,Li = calcvars_u(R[-1],T[-1],u[-1])
     rho.append(rhoi)
     L.append(Li)
-    tau.append(rhoi*kappa(rhoi,T[-1])*r[-1])
+    tau.append(rhoi*kappa(rhoi,T[-1])*R[-1])
 
     if T[-1]<0:
         break
 
-    # ax1.loglog(r[-1],T[-1],'b.')
-    # ax2.loglog(r[-1],rho[-1],'b.')
-    # ax3.semilogx(r[-1],L[-1]/LEdd,'b.')
-    # ax4.loglog(r[-1],tau[-1],'b.')
+    # ax1.loglog(R[-1],T[-1],'b.')
+    # ax2.loglog(R[-1],rho[-1],'b.')
+    # ax3.semilogx(R[-1],L[-1]/LEdd,'b.')
+    # ax4.loglog(R[-1],tau[-1],'b.')
     # plt.pause(0.01)
 
-    print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(r[-1]/1e5,T[-1],rho[-1]))
+    print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(R[-1]/1e5,T[-1],rho[-1]))
 
     i+=1
     if i==3: break

@@ -171,12 +171,12 @@ def uphi(phi, T, inwards):
 def numerator(r, T, v, verbose=False):  # numerator of eq (4a)
 
     rho = Mdot/(4*pi*r**2*Y(r, v)*v)     # eq 1a
-    Lstar = Edot-Mdot*H(rho, T)*Y(r, v) + Mdot*c**2   # eq 1c, actually modified for the Mdot*c**2 (need to verify this)
+    Lstar = Edot-Mdot*H(rho, T)*Y(r, v) + Mdot*c**2   # eq 1c, actually modified for the Mdot*c**2 (ok, just means the definition of Edot is changed)
 
-    return gamma(v)**(-2) * (GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
+    return gamma(v)**(-2) * (   GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
 
 def rSonic(Ts):
-    ''' Finds the sonic point radius corresponding to the sonic point temperature Ts '''
+    ''' Finds the sonic point radius corresponding to the sonic point temperature Ts (in GR it's exactly the "sonic" point, see Paczynski) '''
 
     rkeep1, rkeep2 = 0.0, 0.0
     npoints = 10
@@ -279,13 +279,20 @@ def dr(inic, r, inwards):
     # avoid numerical problems, and no significant loss in precision or accuracy is made by ignoring
     # the dlnv_dlnr term.
 
-
-    cs, rootA = sqrt(B(T)), sqrt(A(T))
-    mach = u/cs
-
     dT_dr = T/r * dlnT_dlnr
-    dphi_dr = dT_dr * (3/(4*rootA*T) * (cs/c)**2 * (mach-1/mach/A(T)) + cs/2/T * (-rootA*mach/cs + 1/rootA/u)) -\
-        1/(rootA*cs*r*u) * numerator(r, T, u)
+
+    # cs, rootA = sqrt(B(T)), sqrt(A(T))
+    # mach = u/cs
+    # dphi_dr = dT_dr * (3/(4*rootA*T) * (cs/c)**2 * (mach-1/mach/A(T)) + cs/2/T * (-rootA*mach/cs + 1/rootA/u)) -\
+    #     1/(rootA*cs*r*u) * numerator(r, T, u)
+    
+    mach = u/sqrt(B(T))
+    dphi_dr = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
+    
+    # dphi_dr3 = dT_dr * (3/(4*sqrt(A(T))*T) * B(T)/c**2 * (mach-1/mach/A(T)) + sqrt(B(T))/2/T * (-sqrt(A(T)/B(T))*mach + 1/sqrt(A(T))/u)) -\
+    #     1/(sqrt(A(T)*B(T))*r*u) * numerator(r, T, u)
+    
+    # print(dphi_dr/dphi_dr2)
 
     return [dT_dr, dphi_dr]
 
@@ -562,16 +569,22 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
-# use_lsoda_remove = 0
-# from IO import load_roots
-# x,z = load_roots()
 
-#err1,err2=MakeWind(z[-1],x[-1], Verbose=True)
-# # err1,err2=MakeWind([1.02568, 7.314739],18.5, Verbose=True)
+
+
+
+# For testing when making modifications to this script
+
+use_lsoda_remove = 0
+from IO import load_roots
+x,z = load_roots()
+
+# Just one solution
+# err1,err2=MakeWind(z[20],x[20], Verbose=True)
 # # err1,err2=MakeWind([1.02,7.1],18.9)
-# # err1,err2=MakeWind([1.025088,7.192513],18.5)
 # print(err1,err2) 
-#
-# for logmdot,root in zip(x,z):
-#    err1,err2=MakeWind(root,logmdot)
-#    print('%.3e \t-\t %.3e\n'%(err1,err2))
+
+# All solutions
+for logmdot,root in zip(x,z):
+   err1,err2=MakeWind(root,logmdot)
+   print('%.3e \t-\t %.3e\n'%(err1,err2))
