@@ -96,7 +96,7 @@ def C(Lstar, T, r, rho, v):  # eq 5c
 
 
 # ------------------------------------- Degenerate electron corrections ---------------------------------------
-# We will use these corrections when integrating to high densities (below sonic point, going towards the surface)
+# We use these corrections when integrating to high densities (below sonic point, going towards the surface)
 
 def electrons(rho,T):  # From Paczynski (1983) semi-analytic formula : ApJ 267 315
 
@@ -273,7 +273,7 @@ def dr(inic, r, inwards):
     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
 
 
-    # Note : Options 1&2 both run into numerical problems because dlnv_dlnr goes crazy not just at the
+    # Note : Options 1&2 both run into numerical problems because dlnv_dlnr diverges not just at the
     # sonic point but also in its vicinity.  It therefore completely dominates the dlnT_dlnr term
     # when in reality it should be negligible because of the (u/c)**2 term.  Option 3 is the best to 
     # avoid numerical problems, and no significant loss in precision or accuracy is made by ignoring
@@ -575,14 +575,79 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 # ------------------------------------------------- Checking solutions and tests ---------------------------------------------------
 
 
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+def plot_stuff(radius,T_points,phi_points,T_func,phi_func,dT_points,dphi_points,title):
+    '''T_points and phi_points are the actual points from the solution (same for drho and dT)
+       T_points and phi_func are some kind of fit of the date, like a spline, but they HAVE TO have a .derivative method()'''
+
+    fig= plt.figure(figsize=(12,8))
+    fig.suptitle(title,fontsize=15)
+
+    gs = gridspec.GridSpec(3, 2, height_ratios=[3, 3, 2])
+    ax = []
+    for i in range(6): ax.append(plt.subplot(gs[i]))
+    ax1,ax2,ax3,ax4,ax5,ax6 = ax
+
+    ax1.set_ylabel(r'log $\rho$ (g cm$^{-3}$)',fontsize=14)
+    ax2.set_ylabel(r'log T (K)',fontsize=14)
+    ax3.set_ylabel(r'log |$d\rho/dr$|',fontsize=14)
+    ax4.set_ylabel(r'log |$dT/dr$|',fontsize=14)
+    ax5.set_ylabel('Rel. error (%)',fontsize=14)
+    ax6.set_ylabel('Rel. error (%)',fontsize=14)
+    ax5.set_xlabel(r'log $r$ (km)',fontsize=14)
+    ax6.set_xlabel(r'log $r$ (km)',fontsize=14)
+    ax5.set_ylim([-10,10])
+    ax6.set_ylim([-10,10])
+
+    x=radius/1e5
+    ax1.plot(x,np.log10(T_points),'k.',label='Solution',ms=6,alpha=0.5)
+    ax1.plot(x,np.log10(T_points(radius)),'b-',label='Fit')
+    ax2.plot(x,np.log10(phi_points),'k.',label='Solution',ms=6,alpha=0.5)
+    ax2.plot(x,np.log10(phi_func(radius)),'b-',label='Fit')
+    ax3.plot(x,np.log10(np.abs(T_points.derivative()(radius))),'b-',label='Fit derivative')
+    ax3.plot(x,np.log10(np.abs(dT_points)),'k.',label='Direct derivative',ms=6,alpha=0.5)
+    ax4.plot(x,np.log10(np.abs(phi_func.derivative()(radius))),'b-',label='Fit derivative')
+    ax4.plot(x,np.log10(np.abs(dphi_points)),'k.',label='Direct derivative',ms=6,alpha=0.5)
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    ax4.legend()
+
+    # Errors
+    relerr_rho = (dT_points-T_points.derivative()(radius))/dT_points
+    relerr_T = (dphi_points-phi_func.derivative()(radius))/dphi_points
+    ax5.plot(x,relerr_rho*100,'k-',lw=1.5)
+    ax6.plot(x,relerr_T*100,'k-',lw=1.5)
+
+    plt.tight_layout(rect=(0,0,1,0.95))
 
 
 
+
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 def check_solution(logMdot, sol):
 
     ''' checks solution vector's direct derivatives against analytic expressions '''
+    
+    global Mdot, Edot, rs, verbose
+    R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = sol
 
-    pass
+    Mdot, verbose = 10**logMdot, 0
+
+    # Spline fit
+    fT,fphi = IUS(R,T), IUS(R,T)
+    
+    # Analytical derivatives
+    dT,dphi = [],[]
+    for ri,Ti,phii  in zip(R,T,Phi):
+        inwards = True if ri<rs else False
+        z = dr([Ti,phii],ri,inwards=inwards)
+        dT.append(z[0])
+        dphi.append(z[1])
+
+    plot_stuff(R,T,Phi,fT,fphi,dT,dphi,'Error')
+
     
 
 

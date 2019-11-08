@@ -126,23 +126,23 @@ for i,ri in enumerate(r0[1:]):
 # # ax2.loglog(r0,T0,'b.')
 
 
-fig3,ax3 = plt.subplots(1,1)
-ax3.axvline(rs0)
+# fig3,ax3 = plt.subplots(1,1)
+# ax3.axvline(rs0)
 
-ax3.set_title('dphi_dr')
-index_rs = np.argmin(np.abs(r0-rs0))
-ax3.semilogx(r0[index_rs-30:], pacdphi1[index_rs-31:], 'r-',label=r'pac dphi term 1')
-ax3.semilogx(r0[index_rs-30:], pacdphi2[index_rs-31:], 'b-',label=r'pac dphi term 2')
-ax3.semilogx(r0[index_rs-30:], flddphi1[index_rs-31:], 'r--',label=r'fld dphi term 1')
-ax3.semilogx(r0[index_rs-30:], flddphi2[index_rs-31:], 'b--',label=r'fld dphi term 2')
-ax3.semilogx(r0[index_rs-30:], pacdphi[index_rs-31:], 'k-',label=r'pac dphi')
-ax3.semilogx(r0[index_rs-30:], flddphi[index_rs-31:], 'k--',label=r'fld dphi')
-# ax3.set_yscale('symlog')
-ax3.legend()
+# ax3.set_title('dphi_dr')
+# index_rs = np.argmin(np.abs(r0-rs0))
+# ax3.semilogx(r0[index_rs-30:], pacdphi1[index_rs-31:], 'r-',label=r'pac dphi term 1')
+# ax3.semilogx(r0[index_rs-30:], pacdphi2[index_rs-31:], 'b-',label=r'pac dphi term 2')
+# ax3.semilogx(r0[index_rs-30:], flddphi1[index_rs-31:], 'r--',label=r'fld dphi term 1')
+# ax3.semilogx(r0[index_rs-30:], flddphi2[index_rs-31:], 'b--',label=r'fld dphi term 2')
+# ax3.semilogx(r0[index_rs-30:], pacdphi[index_rs-31:], 'k-',label=r'pac dphi')
+# ax3.semilogx(r0[index_rs-30:], flddphi[index_rs-31:], 'k--',label=r'fld dphi')
+# # ax3.set_yscale('symlog')
+# ax3.legend()
 
-# ax3.loglog(r0,phi0)
+# # ax3.loglog(r0,phi0)
 
-plt.show()
+# plt.show()
 
 """
 def calcvars_u(r,T,u):
@@ -151,7 +151,7 @@ def calcvars_u(r,T,u):
     L = Lstar/(1+u**2/c**2)/Y(r, u)**2
     return rho,Lstar,L
 
-def drFLD(r, T, U, Tprev, rprev):
+def drFLD(r, T, u, Tprev, rprev):
 
     ''' applying FLD and assuming relativstic terms are small '''
 
@@ -289,7 +289,7 @@ print('\n\n')
 
 
 
-"""
+# """
 
 
 # Integrating with the phi variable instead
@@ -301,46 +301,65 @@ def calcvars_phi(r,T,phi):
     L = Lstar/(1+u**2/c**2)/Y(r, u)**2
     return u,rho,Lstar,L
 
-def drFLD(r, T, phi, Tprev, rprev):
+def drFLD(r, T, phi, Tprev, rprev, uprev):
 
     ''' applying FLD and assuming relativstic terms are small '''
 
     u,rho,Lstar,L = calcvars_phi(r,T,phi)
-
-    E,Eprev = arad*T**4, arad*Tprev**4
-    dE = (E-Eprev)/(r-rprev)
-    Lam = lamfunc(E,dE,rho,T)
     a,b = A(T),B(T)
     mach = u/np.sqrt(b)
 
+    # fld stuff
+    E,Eprev = arad*T**4, arad*Tprev**4
+    dy4E = (Y(r,u)**4 * E - Y(rprev,uprev)**4 * Eprev) / (r-rprev)
+    y3E = Y(r,u)**3 * E
+    Lam = lamfunc(y3E,dy4E,rho,T)
+
+
     # FLD temperature gradient
-    dlnT_dlnr = -kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Lam)
+    dlnT_dlnr_pac = -3*kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Y(r,u))   - 1/Swz(r)*GM/c**2/r
+    dlnT_dlnr_fld = -kappa(rho,T)*rho*L/(16*pi*r*arad*c*T**4*Y(r,u))/Lam - 1/Swz(r)*GM/c**2/r
+
+    # Velocity gradient numerator
+    pacnum1 = GM/r/Swz(r) * (a-b/c**2) 
+    pacnum2 = C(Lstar, T, r, rho, u) 
+    pacnum3 = 2*b 
+    pacnum = pacnum1 - pacnum2 - pacnum3
+    fldnum = pacnum1 - pacnum2/(3*Lam) - pacnum3
 
     # Paczynski phi gradient
-    dlnT_dlnr_pac = dlnT_dlnr*3*Lam/Y(r,u)
-    num_pac = gamma(u)**(-2) * (GM/r/Swz(r) * (a-b/c**2) - C(Lstar, T, r, rho, u) -2*b)
-    dphi_dr_pac = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr_pac  -  num_pac/(u*r*np.sqrt(a*b))
+    pac1 = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr_pac
+    pac2 = pacnum/(u*r*np.sqrt(a*b))
+    dphi_dr_pac = pac1-pac2
 
     # FLD phi gradient
-    q = 4*arad*T**4/(3*rho) # radiation pressure + energy term divided by rho.
-    num_fld = gamma(u)**(-2) * ( (c**2+2.5*B(T)+q)*GM/(r*c**2*Swz(r)) + (B(T)+q)*dlnT_dlnr - B(T)*( 2 + GM/(r*c**2*Swz(r)) ) )
-    dphi_dr = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr  -  num_fld/(u*r*np.sqrt(a*b))
+    fld1 = (a*mach**2-1)*(3*b-2*a*c**2)/(4*mach*a**(3/2)*c**2*r) * dlnT_dlnr_fld
+    fld2 = fldnum/(u*r*np.sqrt(a*b))
+    dphi_dr_fld = fld1-fld2
 
-    print(dphi_dr_pac,dphi_dr)
+
+
+    print('lambda = %.5f \t num1/num2 = %.5f \t pacnum/fldnum = %.5f \t pacdphi/flddphi = %.5f'\
+        %(Lam , pacnum1/pacnum2 , pacnum/fldnum , dphi_dr_pac/dphi_dr_fld))
+
+
+    # which to use
+    dlnT_dlnr,dphi_dr = dlnT_dlnr_pac , dphi_dr_pac
+    # dlnT_dlnr,dphi_dr = dlnT_dlnr_fld , dphi_dr_fld
 
     dT_dr = T/r * dlnT_dlnr
 
     return dT_dr,dphi_dr,Lam
 
 
-
+########### plot setup #######################################################
 fig,[[ax1,ax2,ax3],[ax4,ax5,ax6]] = plt.subplots(2,3,figsize=(16,10))
 ax1.loglog(r0,T0,'k-',linewidth=0.8)
 ax2.loglog(r0,rho0,'k-',linewidth=0.8)
 ax3.semilogx(r0,L0/LEdd,'k-',linewidth=0.8)
 ax4.loglog(r0,phi0,'k-',linewidth=0.8)
 ax5.loglog(r0,u0,'k-',linewidth=0.8)
-ax6.semilogx(r0[1:],lam0,'k-',linewidth=0.8)
+ax6.semilogx(r0[1:],lam0,'k.-',linewidth=0.8)
 ax4.set_xlabel(r'$r$ (cm)',fontsize=14)
 ax5.set_xlabel(r'$r$ (cm)',fontsize=14)
 ax6.set_xlabel(r'$r$ (cm)',fontsize=14)
@@ -352,18 +371,18 @@ ax5.set_ylabel(r'$u$ (cm/s)',fontsize=14)
 ax6.set_ylabel(r'$\lambda=(2+R)/(6+3R+R^2)$',fontsize=14)
 for ax in (ax1,ax2,ax3,ax4,ax5,ax6):
     ax.axvline(rs0,alpha=0.5)
-
-i0 = np.argmin(np.abs(r0-(rs0+50e5)))  # second try 50 km above sonic point
-
+#############################################################################
 
 
-r,T,u,rho,L,Lam,tau,phi= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-1],lam0[i0]], [tau0[i0-1],tau0[i0]] , [phi0[i0-1],phi0[i0]]
+i0 = np.argmin(np.abs(r0-(rs0+50e5)))  # s 50 km above sonic point
 
-dr = 1e5     # 10m stepsize
+r,T,u,rho,L,Lam,tau,phi= [r0[i0-1],r0[i0]], [T0[i0-1],T0[i0]] , [u0[i0-1],u0[i0]] , [rho0[i0-1],rho0[i0]] , [L0[i0-1],L0[i0]], [lam0[i0-2],lam0[i0-1]], [tau0[i0-1],tau0[i0]] , [phi0[i0-1],phi0[i0]]
+
+dr = 1e5     # stepsize
 i=0
 while r[-1]<1000e5: # go to 3000km
 
-    dT_dr,dphi_dr,LLam = drFLD(r[-1],T[-1],phi[-1],T[-2],r[-2])
+    dT_dr,dphi_dr,LLam = drFLD(r[-1],T[-1],phi[-1],T[-2],r[-2],u[-2])
     r.append(r[-1]+dr)
     T.append(T[-1]+dT_dr*dr)
     phi.append(phi[-1]+dphi_dr*dr)
@@ -384,10 +403,10 @@ while r[-1]<1000e5: # go to 3000km
     # ax4.loglog(r[-1],phi[-1],'b.')
     # plt.pause(0.01)
 
-    print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(r[-1]/1e5,T[-1],rho[-1]))
+    # print('r = %.2f km  -  T = %.2e  - rho = %.2e '%(r[-1]/1e5,T[-1],rho[-1]))
 
     i+=1
-    if i==3: break
+    # if i==3: break
 
 print('\n\n')
 
@@ -395,9 +414,11 @@ ax1.loglog(r,T,'b-')
 ax2.loglog(r,rho,'b-')
 ax3.semilogx(r,np.array(L)/LEdd,'b-')
 ax4.loglog(r,phi,'b-')
-ax5.loglog(r,u,'b.-')
+ax5.loglog(r,u,'b-')
 ax6.semilogx(r,Lam,'b-')
 
 plt.tight_layout()
 plt.show()
-"""
+
+
+# """
