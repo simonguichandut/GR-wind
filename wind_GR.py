@@ -572,6 +572,23 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
+# ------------------------------------------------- Checking solutions and tests ---------------------------------------------------
+
+
+
+
+
+def check_solution(logMdot, sol):
+
+    ''' checks solution vector's direct derivatives against analytic expressions '''
+
+    pass
+    
+
+
+
+
+
 
 # For testing when making modifications to this script
 

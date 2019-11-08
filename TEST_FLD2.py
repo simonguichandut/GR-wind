@@ -41,7 +41,7 @@ def lamfunc(y3E,dy4E,rho,T):  # same as before
 # first pass through the data
 RR0,lam0 = [],[]
 
-pacnum1,pacnum2,pacnum2b,pacnum,pacdenom,fldnum1,fldnum2,fldnum,flddenom,pacdphi,flddphi = [[] for i in range(11)]
+pacnum1,pacnum2,pacnum2b,pacnum,pacdenom,fldnum1,fldnum2,fldnum,flddenom,pacdphi1,pacdphi2,pacdphi,flddphi1,flddphi2,flddphi = [[] for i in range(15)]
 
 for i,ri in enumerate(r0[1:]):
     E=arad*T0[i]**4
@@ -77,13 +77,24 @@ for i,ri in enumerate(r0[1:]):
     flddenom.append( bi - u0[i]**2*ai )
 
 
-
     # Checking the phi derivative terms
     mach = u0[i]/np.sqrt(bi)
     # dphi_dr = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
 
-    pacdphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_pac  -  pacnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
-    flddphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_fld  -  fldnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
+    # pacdphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_pac  -  pacnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
+    # flddphi.append(  (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_fld  -  fldnum[-1]/(u0[i]*ri*np.sqrt(ai*bi))   )
+    
+    pacdphi1.append( (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_pac )
+    pacdphi2.append( pacnum[-1]/(u0[i]*ri*np.sqrt(ai*bi)) )
+    pacdphi.append( pacdphi1[-1] - pacdphi2[-1] )
+
+    flddphi1.append( (ai*mach**2-1)*(3*bi-2*ai*c**2)/(4*mach*ai**(3/2)*c**2*ri) * dlnT_dlnr_fld )
+    flddphi2.append( fldnum[-1]/(u0[i]*ri*np.sqrt(ai*bi)) )
+    flddphi.append( flddphi1[-1] - flddphi2[-1] )
+
+
+
+
 
 
 
@@ -120,11 +131,16 @@ ax3.axvline(rs0)
 
 ax3.set_title('dphi_dr')
 index_rs = np.argmin(np.abs(r0-rs0))
-ax3.semilogx(r0[index_rs-30:], pacdphi[index_rs-31:], 'k-',label=r'pac')
-ax3.semilogx(r0[index_rs-30:], flddphi[index_rs-31:], 'k--',label=r'fld')
+ax3.semilogx(r0[index_rs-30:], pacdphi1[index_rs-31:], 'r-',label=r'pac dphi term 1')
+ax3.semilogx(r0[index_rs-30:], pacdphi2[index_rs-31:], 'b-',label=r'pac dphi term 2')
+ax3.semilogx(r0[index_rs-30:], flddphi1[index_rs-31:], 'r--',label=r'fld dphi term 1')
+ax3.semilogx(r0[index_rs-30:], flddphi2[index_rs-31:], 'b--',label=r'fld dphi term 2')
+ax3.semilogx(r0[index_rs-30:], pacdphi[index_rs-31:], 'k-',label=r'pac dphi')
+ax3.semilogx(r0[index_rs-30:], flddphi[index_rs-31:], 'k--',label=r'fld dphi')
 # ax3.set_yscale('symlog')
 ax3.legend()
 
+# ax3.loglog(r0,phi0)
 
 plt.show()
 
