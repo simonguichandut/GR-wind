@@ -12,15 +12,15 @@ rc('text', usetex = True)
 mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
 mpl.rcParams.update({'font.size': 15})
 
-from wind_GR import *
-from IO import *
+from wind_GR import MakeWind,kappa
+from IO import load_params,load_roots,make_directories,clean_rootfile,save_plots,write_to_file
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 
 # Parameters
-M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
-
+M, RNS, y_inner, tau_out, comp, FLD, mode, save, img = load_params()
+    
 # constants
 c = 2.99792458e10
 kappa0 = 0.2
@@ -141,5 +141,6 @@ beautify(fig6,ax6)
 
 if save: 
     save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot','Opacity','Optical_depth'],img)
+    print('Plots saved')
 else:
     plt.show()

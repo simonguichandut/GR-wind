@@ -57,10 +57,10 @@ Edots = array([l[0] for l in roots])
 
 # Contributions to Edot
 w = (Eb+Pb)/rhob
-Ek = (ub*1e5)**2/2
+Ek = (ub)**2/2
 Eg = GM/RNS/1e5
 
-Edots_GR = Lbs + Mdots*H_e(rhob,Tb)*Y(Rb*1e5,ub)
+Edots_GR = Lbs + Mdots*H_e(rhob,Tb)*Y(Rb,ub)
 Edots_newt =  Lb + Mdots*(c**2+Ek+w-Eg)
 
 #fig,ax=plt.subplots(1,1)
@@ -106,12 +106,12 @@ def plot_one_column(logMdot,normalize='biggest'):
     
     if normalize=='biggest':
         norm = Edots_newt[-1]
-        fg,fc2,fL,fw,fk = -Eg*Mdots[i]/norm , Mdots[i]*c**2/norm , Lb[i]/norm , Mdots[i]*w[i]/norm, Mdots[i]*(ub[i]*1e5)**2/2/norm
+        fg,fc2,fL,fw,fk = -Eg*Mdots[i]/norm , Mdots[i]*c**2/norm , Lb[i]/norm , Mdots[i]*w[i]/norm, Mdots[i]*(ub[i])**2/2/norm
         ax.set_yticks((0,0.5e40/norm,1e40/norm))
         ax.set_yticklabels(('0',r'5$\times 10^{39}$','$10^{40}$'))
     elif normalize=='each':
         norm = Edots_newt
-        fg,fc2,fL,fw,fk = -Eg*Mdots[i]/norm[i] , Mdots[i]*c**2/norm[i] , Lb[i]/norm[i] , Mdots[i]*w[i]/norm[i], Mdots[i]*(ub[i]*1e5)**2/2/norm[i]
+        fg,fc2,fL,fw,fk = -Eg*Mdots[i]/norm[i] , Mdots[i]*c**2/norm[i] , Lb[i]/norm[i] , Mdots[i]*w[i]/norm[i], Mdots[i]*(ub[i])**2/2/norm[i]
         ax.set_yticks((0,0.5,1))
 #        ax.set_yticklabels(('0','0.5','1'))
     

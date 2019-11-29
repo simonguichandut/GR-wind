@@ -13,26 +13,28 @@ def load_params():
         y_inner = float(f.readline().split()[1])
         tau_out = float(f.readline().split()[1])
         comp = f.readline().split()[1]
+        FLD = eval(f.readline().split()[1]) # boolean
         next(f)
         next(f)
         mode = f.readline().split()[1]
         save = f.readline().split()[1]
         img = f.readline().split()[1]
         
-    return M,R,y_inner,tau_out,comp,mode,save,img
+    return M,R,y_inner,tau_out,comp,FLD,mode,save,img
 
 
 def get_name():  # We give various files and directories the same name corresponding to the setup given in the parameter file
 
-    M,R,y_inner,tau_out,comp,_,_,_ = load_params()
+    M,R,y_inner,tau_out,comp,FLD,_,_,_ = load_params()
     name = '_'.join( [ comp , str(M) , ('%2d'%R) , ('%1d'%tau_out) , ('%1d'%log10(y_inner)) ] )
+    if FLD: name += '_FLD'
     return name
 
 
 def save_root(logMDOT,root):
 
     filename = get_name()
-    path = 'wind_solutions/sols_' + filename + '.txt'
+    path = 'roots/roots_' + filename + '.txt'
 
     if not os.path.exists(path):
         f = open(path,'w+')
@@ -48,10 +50,10 @@ def save_root(logMDOT,root):
 def load_roots():
 
     filename = get_name()
-    path = 'wind_solutions/sols_' + filename + '.txt'
+    path = 'roots/roots_' + filename + '.txt'
 
     if not os.path.exists(path):
-        print('Root file does not exist')
+        raise TypeError('Root file does not exist')
 
     else:
         logMDOTS,roots = [],[]
@@ -89,11 +91,11 @@ def write_to_file(logMdot,data):
 
     with open(filename,'w') as f:
         f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
-            'r (km)','u (km/s)','cs (km/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau'))
+            'r (cm)','u (cm/s)','cs (cm/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau'))
 
         for i in range(len(R)):
             f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
-                (R[i]/1e5 , u[i]/1e5 , cs[i]/1e5 , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i], tau[i]))
+                (R[i] , u[i] , cs[i] , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i], tau[i]))
 
             if R[i]!=rs:
                 f.write('\n')
@@ -118,13 +120,16 @@ def write_to_file(logMdot,data):
                 
 
 
-def read_from_file(logMdot):
+def read_from_file(logMdot,specific_file=None):
 
-    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau and sonic point rs. r,u and cs are in km!'''
+    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau and sonic point rs. '''
 
-    dirname = get_name()
-    path = 'results/' + dirname + '/data/'
-    filename = path + str(logMdot) + '.txt'
+    if specific_file != None:
+        filename = specific_file
+    else:
+        dirname = get_name()
+        path = 'results/' + dirname + '/data/'
+        filename = path + str(logMdot) + '.txt'
 
     def append_vars(line,varz,cols): # take line of file and append its values to variable lists 
         l=line.split()
@@ -136,11 +141,10 @@ def read_from_file(logMdot):
         next(f)
         for line in f: 
             append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, tau],[i for i in range(11)])
-            if line.split()[-1]=='point': rs = float(line.split()[0])*1e5
+            if line.split()[-1]=='point': rs = float(line.split()[0])
 
     return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),rs
     # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs
-    # r,u,cs are in km!!
 
 
 def save_plots(figs,fignames,img):
@@ -179,7 +183,7 @@ def clean_rootfile(warning=1):
             o = 1
         if o:
             filename = get_name()
-            path = 'wind_solutions/sols_' + filename + '.txt'
+            path = 'roots/roots_' + filename + '.txt'
             os.remove(path)
 
             for x,y in zip(new_logMDOTS,new_roots): 

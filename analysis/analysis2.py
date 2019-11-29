@@ -68,7 +68,7 @@ for logMdot in logMDOTS:
 #     f.write('{:<7s} \t {:<10s} \t {:<10s} \t {:<10s} \t {:<10s}\n'.format('logMdot','Rphot(km)','Tb','Lb','Lbinf'))
 #     for i in range(len(logMDOTS)):
 #         f.write('{:<7.2f} \t {:<10.5e} \t {:<10.5e} \t {:<10.5e} \t {:<10.5e} \n'.format(
-#          logMDOTS[i] , Rphot[i] , Tb[i] , Lb[i] , Lbs[i]) )
+#          logMDOTS[i] , Rphot[i]/1e5 , Tb[i] , Lb[i] , Lbs[i]) )
 
 
 # Base Luminosity
@@ -482,16 +482,16 @@ def FT_Plot_with_envelopes(save=0,plot_error=1):   # ALSO CREATES NEW ENVELOPE F
 # Min,Mout = [],[]
 # from scipy.integrate import quad
 # for i,logMdot in enumerate(logMDOTS):
-#     rhofunc = interp1d(Rfull[i]*1e5,rhofull[i],kind='cubic')
-#     # x = linspace(Rfull[i][0],Rfull[i][-1],10000)*1e5
-#     # plt.loglog(Rfull[i]*1e5,rhofull[i],'k-')
+#     rhofunc = interp1d(Rfull[i],rhofull[i],kind='cubic')
+#     # x = linspace(Rfull[i][0],Rfull[i][-1],10000)
+#     # plt.loglog(Rfull[i],rhofull[i],'k-')
 #     # plt.loglog(x,rhofunc(x),'b--')
 
 #     def mass_in_shell(r):
 #         return 4*pi*rhofunc(r)*r**2
 
-#     mass_below_sonic,err1 = quad(mass_in_shell , Rfull[i][0]*1e5 ,  sonicpoints[i])
-#     mass_above_sonic,err2 = quad(mass_in_shell , sonicpoints[i] , Rfull[i][-1]*1e5)
+#     mass_below_sonic,err1 = quad(mass_in_shell , Rfull[i][0] ,  sonicpoints[i])
+#     mass_above_sonic,err2 = quad(mass_in_shell , sonicpoints[i] , Rfull[i][-1])
 #     Min.append(mass_below_sonic)
 #     Mout.append(mass_above_sonic)
 

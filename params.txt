@@ -6,11 +6,12 @@ R	12		[km]
 y_inner 1e8		[g/cm2]
 tau_out 3		
 comp	He		[He or Ni..]
+FLD     True   # boolean    
 
 --- Code ---
 mode	rootsolve	[rootsolve or wind]
 save	1		
-img	.png		[.png,.pdf,.jpg]	 
+img	    .png		[.png,.pdf,.jpg]	 
 
 
 

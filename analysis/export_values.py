@@ -27,9 +27,7 @@ with open(target+'wind_values_'+comp+'.txt','w') as f:
 
 
     for x in logMDOTS:
-        r,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs = read_from_file(x) # r,u,cs are in km
-
-        r,u,cs = r*1e5,u*1e5,cs*1e5
+        r,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs = read_from_file(x) 
 
         tflow,tsound,tsound2,Tau = flowtime(r,u),soundtime(r,u),soundtime2(r,cs,rs),soundflowtime(r,cs,u,rs)
 

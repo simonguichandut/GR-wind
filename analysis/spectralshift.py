@@ -12,7 +12,6 @@ GM = 6.6726e-8*2e33*M
 
 
 R,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs=read_from_file(18.0)
-u,r = u*1e5,R*1e5
 
 redshift=(1-2*GM/c**2/r)**(-0.5)-1
 blueshift=np.sqrt((1-u/c)/(1+u/c))-1

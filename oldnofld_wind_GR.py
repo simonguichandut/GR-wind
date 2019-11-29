@@ -1,15 +1,14 @@
 ''' Main code to calculate winds '''
 
 from scipy.optimize import brentq
-from scipy.integrate import odeint,solve_ivp
+from scipy.integrate import odeint
 from scipy.interpolate import interp1d
 import numpy as np
 from numpy import linspace, sqrt, log10, array, pi
-import IO
+from IO import load_params
 import os
 from lsoda_remove import stdout_redirected
-# use_lsoda_remove = True
-use_lsoda_remove = False
+use_lsoda_remove = True
 
 # --------------------------------------- Constants and parameters --------------------------------------------
 
@@ -22,7 +21,7 @@ kappa0 = 0.2
 sigmarad = 0.25*arad*c
 
 # Parameters
-M, RNS, y_inner, tau_out, comp, FLD, mode, save, img = IO.load_params()
+M, RNS, y_inner, tau_out, comp, mode, save, img = load_params()
 
 if comp == 'He':
     Z=2
@@ -75,34 +74,10 @@ def Beta(rho, T):  # pressure ratio
     Pr = arad*T**4/3.0
     return Pg/(Pg+Pr)
 
-# --------------------------------------- Flux-limited diffusion ------------------------------------------------
-
-# Modified version of Pomraning (1983) FLD prescription.  See Guichandut & Cumming (2020)
-
-def FLD_Lam(Lstar,r,v,T):
-
-    if isinstance(Lstar, (list,tuple,np.ndarray)): # for function to be able to take and return array
-        Lam = []
-        for lstari,ri,vi,Ti in zip(Lstar,r,v,T):
-            Lam.append(FLD_Lam(lstari,ri,vi,Ti))
-        return array(Lam)
-
-    else:
-        L = Lcomoving(Lstar,r,v)
-        Flux = L/(4*pi*r**2)
-        alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
-        if alpha>1:
-            raise Exception
-        Lam = 1/12 * ( (2-3*alpha) + sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
-        return Lam
-
-# ----------------------------------------- Paczynski&Proczynski ------------------------------------------------
+# ----------------------------------------- Paczynski&Proczynski ----------------------------------------------
 
 def Y(r, v):  # eq 2a
     return sqrt(Swz(r))*gamma(v)
-
-def Lcomoving(Lstar,r,v):
-    return Lstar/(1+v**2/c**2)/Y(r, v)**2
 
 def Tstar(Lstar, T, r, rho, v):  # eq 2b
     return Lstar/LEdd * kappa(rho,T)/kappa0 * GM/(4*r) * 3*rho/(arad*T**4) * (1+(v/c)**2)**(-1) * Y(r, v)**(-3)
@@ -118,6 +93,7 @@ def B(T):
 
 def C(Lstar, T, r, rho, v):  # eq 5c
     return Tstar(Lstar, T, r, rho, v) * (4-3*Beta(rho, T))/(1-Beta(rho, T)) * arad*T**4/(3*rho)
+
 
 # ------------------------------------- Degenerate electron corrections ---------------------------------------
 # We use these corrections when integrating to high densities (below sonic point, going towards the surface)
@@ -161,7 +137,7 @@ def H_e(rho, T):  # eq 2c
     return c**2 + (internal_energy_e(rho, T)+pressure_e(rho, T))/rho
 
 def A_e(rho,T):  
-    pe,_,[alpha1,_,f] = electrons(rho,T)
+    pe,_,[alpha1,alpha2,f] = electrons(rho,T)
     return 1 + 1.5*cs2_I(T)/c**2 + pe/(rho*c**2)*(f/(f-1) - alpha1)
 
 def B_e(rho,T): 
@@ -169,10 +145,9 @@ def B_e(rho,T):
     return cs2_I(T) + pe/rho*(alpha1 + alpha2*f)
 
 def C_e(Lstar, T, r, rho, v):  
-    _,_,[alpha1,_,_] = electrons(rho,T)
+    pe,_,[alpha1,alpha2,f] = electrons(rho,T)
     bi,be = Beta_I(rho, T), Beta_e(rho, T)
     return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
-
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
 def uphi(phi, T, inwards):
@@ -193,38 +168,31 @@ def uphi(phi, T, inwards):
 
 # -------------------------------------------- Sonic point -------------------------------------------------
 
-def numerator(r, T, v):  # numerator of eq (4a)
-    
+def numerator(r, T, v, verbose=False):  # numerator of eq (4a)
+
     rho = Mdot/(4*pi*r**2*Y(r, v)*v)     # eq 1a
     Lstar = Edot-Mdot*H(rho, T)*Y(r, v) + Mdot*c**2   # eq 1c, actually modified for the Mdot*c**2 (ok, just means the definition of Edot is changed)
 
-    if FLD:
-        Lam = FLD_Lam(Lstar,r,v,T)
-        return gamma(v)**(-2) * (   GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v)/(3*Lam) - 2*B(T))
-    else:
-        return gamma(v)**(-2) * (   GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
+    return gamma(v)**(-2) * (   GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
 
 def rSonic(Ts):
-    
+    ''' Finds the sonic point radius corresponding to the sonic point temperature Ts (in GR it is not exactly the "sonic" point, see Paczynski) '''
+
     rkeep1, rkeep2 = 0.0, 0.0
-    npoints = 50
-    vs = sqrt(cs2(Ts)/A(Ts))
+    npoints = 10
+    vs = sqrt(cs2(Ts)/sqrt(A(Ts)))
     while rkeep1 == 0 or rkeep2 == 0:
         logr = linspace(6, 9, npoints)
         for r in 10**logr:
-            try:
-                foo = numerator(r, Ts, vs)
-            except Exception:
-                # print('Broke causality (F>cE) when trying sonic point at r=%.3e'%r)
-                pass
-            else:
-                if foo < 0.0:
-                    rkeep1 = r
-                if foo > 0.0 and rkeep2 == 0:
-                    rkeep2 = r
+            foo = numerator(r, Ts, vs)
+            if foo < 0.0:
+                rkeep1 = r
+            if foo > 0.0 and rkeep2 == 0:
+                rkeep2 = r
         npoints += 10
 
-    rs = brentq(numerator, rkeep1, rkeep2, args=(Ts, vs), xtol=1e-10, maxiter=10000)
+    rs = brentq(numerator, rkeep1, rkeep2, args=(
+        Ts, vs ), xtol=1e-10, maxiter=10000)
     return rs
 
 # ---------------------------------------- Calculate vars and derivatives -----------------------------------
@@ -246,14 +214,13 @@ def calculateVars_phi(r, T, phi, inwards=False, return_all=False):
     if not return_all:
         return u, rho, phi, Lstar
     else:
-        L = Lcomoving(Lstar,r,u)
+        L = Lstar/(1+u**2/c**2)/Y(r, u)**2
         LEdd_loc = Lcrit(r,rho,T)
         E = internal_energy(rho, T)
         P = pressure(rho, T)
         cs = sqrt(cs2(T))
         tau = rho*kappa(rho,T)*r
-        lam = FLD_Lam(Lstar,r,u,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
 
 def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electrons
 
@@ -269,14 +236,13 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degen electr
     if not return_all:
         return u, rho, phi, Lstar
     else:
-        L = Lcomoving(Lstar,r,u)
+        L = Lstar/(1+u**2/c**2)/Y(r, u)**2
         LEdd_loc = Lcrit(r,rho,T)
         E = internal_energy_e(rho, T)
         P = pressure_e(rho, T)
         cs = sqrt(cs2(T))
         tau = rho*kappa(rho,T)*r
-        lam = FLD_Lam(Lstar,r,u,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
 
         
 
@@ -304,11 +270,7 @@ def dr(inic, r, inwards):
 
 
     # OPTION 3
-    if FLD:
-        Lam = FLD_Lam(Lstar,r,u,T)
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u)/(3*Lam) - 1/Swz(r) * GM/c**2/r
-    else:
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
+    dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
 
 
     # Note : Options 1&2 both run into numerical problems because dlnv_dlnr diverges not just at the
@@ -319,9 +281,19 @@ def dr(inic, r, inwards):
 
     dT_dr = T/r * dlnT_dlnr
 
+    # cs, rootA = sqrt(B(T)), sqrt(A(T))
+    # mach = u/cs
+    # dphi_dr = dT_dr * (3/(4*rootA*T) * (cs/c)**2 * (mach-1/mach/A(T)) + cs/2/T * (-rootA*mach/cs + 1/rootA/u)) -\
+    #     1/(rootA*cs*r*u) * numerator(r, T, u)
+    
     mach = u/sqrt(B(T))
     dphi_dr = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
     
+    # dphi_dr3 = dT_dr * (3/(4*sqrt(A(T))*T) * B(T)/c**2 * (mach-1/mach/A(T)) + sqrt(B(T))/2/T * (-sqrt(A(T)/B(T))*mach + 1/sqrt(A(T))/u)) -\
+    #     1/(sqrt(A(T)*B(T))*r*u) * numerator(r, T, u)
+    
+    # print(dphi_dr/dphi_dr2)
+
     return [dT_dr, dphi_dr]
 
 
@@ -330,19 +302,15 @@ def drho(inic, rho):
         Considering degenerate electrons '''
 
     T, r = inic[:2]
-    u, rho, _, Lstar = calculateVars_rho(r, T, rho = rho)
+    u, rho, phi, Lstar = calculateVars_rho(r, T, rho = rho)
 
     # Not using phi
     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
     dT_dr = T/r * dlnT_dlnr
 
     # eq 6 from Paczynski
-    if FLD:
-        Lam = FLD_Lam(Lstar,r,u,T)
-        dlnr_dlnrho = (B_e(rho,T)-A_e(rho,T)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A_e(rho,T) + C_e(Lstar, T, r, rho, u)/(3*Lam)) 
-    else:
-        dlnr_dlnrho = (B_e(rho,T)-A_e(rho,T)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A_e(rho,T) + C_e(Lstar, T, r, rho, u)) 
-
+    dlnr_dlnrho = (B_e(rho,T)-A_e(rho,T)*u**2) / ((2*u**2 - (GM/(r*Y(r, u)**2))) * A_e(rho,T) + C_e(Lstar, T, r, rho, u)) 
+                                         
     dr_drho = r/rho * dlnr_dlnrho
     dT_drho = dT_dr * dr_drho
 
@@ -361,10 +329,10 @@ def outerIntegration(Ts, returnResult=False):
     r = np.linspace(rs, r_outer, 5000)
     if use_lsoda_remove:
         with stdout_redirected():
-            result,_ = odeint(dr, inic, r, args=(False,), atol=1e-6,
+            result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
                             rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
     else:
-        result,_ = odeint(dr, inic, r, args=(False,), atol=1e-6,
+        result,info = odeint(dr, inic, r, args=(False,), atol=1e-6,
                         rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
         
 
@@ -374,7 +342,6 @@ def outerIntegration(Ts, returnResult=False):
         firstnan = min([np.argwhere(np.isnan(result[:, i]) == True)[0][0]
                         for i in (0, 1) if True in np.isnan(result[:, i])])  # It works!
         result = result[:firstnan]
-        print('Nans exist')
 
     flag = 1
     L1, L2, tau = 0, 0, []
@@ -402,7 +369,7 @@ def outerIntegration(Ts, returnResult=False):
             photosphere = counter
             break
 
-        # if tau increases, the solution is no longer physical (maybe this isnt true now with FLD)
+        # if tau increases, the solution is no longer physical
         if counter > 2 and tau[-1] > tau[-2]:
             flag = 2
             break
@@ -413,7 +380,7 @@ def outerIntegration(Ts, returnResult=False):
                   " never reached! Minimum tau reached :", tau[-2])
         if flag == 2:
             if verbose:
-                print("Tau started to increase at logr = %.2f" % log10(rr))
+                print("Phi started to increase at logr = %.2f" % log10(rr))
 
     else:
         if verbose:
@@ -434,12 +401,13 @@ def outerIntegration(Ts, returnResult=False):
         else:
             return (L2 - L1) / (L1 + L2)      # Boundary error #1
 
+
 def innerIntegration_r(r, Ts):
-    ''' Integrates in from the sonic point, using r as the independent variable '''
+    ''' Integrates in from the sonic point to 0.95rs, using r as the independent variable '''
     if verbose:
         print('\n**** Running innerIntegration R ****')
     inic = [Ts, 2.0]
-    result,_ = odeint(dr, inic, r, args=(True,), atol=1e-6,
+    result,info = odeint(dr, inic, r, args=(True,), atol=1e-6,
                     rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
     return result
 
@@ -454,10 +422,10 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
     inic = [T95, r95]
     if use_lsoda_remove:
         with stdout_redirected(): 
-            result,_ = odeint(drho, inic, rho, atol=1e-6, 
+            result,info = odeint(drho, inic, rho, atol=1e-6, 
                             rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
     else:
-        result,_ = odeint(drho, inic, rho, atol=1e-6, 
+        result,info = odeint(drho, inic, rho, atol=1e-6, 
                         rtol=1e-6,full_output=True)  # contains T(rho) and r(rho)
     flag = 0
 
@@ -474,7 +442,7 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
 
     # Obtaining pressure
     T, r = result[:, 0], result[:, 1]
-    _,_,_,_,_,_,_,P,_,_,_ = calculateVars_rho(r, T, rho=rho, return_all=True)
+    _,_,_,_,_,_,_,P,_,_ = calculateVars_rho(r, T, rho=rho, return_all=True)
         
 
     # Checking that we reached surface pressure
@@ -511,6 +479,7 @@ def innerIntegration_rho(rho, r95, T95, returnResult=False):
             return (RNS_calc/1e5-RNS)/RNS       # Boundary error #2
 
 # ------------------------------------------------- Wind ---------------------------------------------------
+
 
 def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and log10(Ts).
@@ -602,312 +571,30 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
 
 
-# # For testing when making modifications to this script
 
-# use_lsoda_remove = 0
-# x,z = IO.load_roots()
+# ------------------------------------------------- Checking solutions and tests ---------------------------------------------------
 
-# # # Just one solution
-# # err1,err2=MakeWind(z[20],x[20], Verbose=True)
-# # err1,err2=MakeWind([1.02,7.1],18.9)
-# # print(err1,err2)
 
-# # All solutions
-# for logmdot,root in zip(x,z):
-#    err1,err2=MakeWind(root,logmdot)
-#    print('%.3e \t-\t %.3e\n'%(err1,err2))
 
-
-
-
-
-
-
-#############################################################################################################
-
-# Testing integrations now that FLD has been added
-logMdot = 18.5
-params=[1.025426   ,  7.196667]
-# params=[1.001   ,  7.3]
-
-# logMdot = 19
-# params=[1.020872   ,  6.958264]
-
-# logMdot = 18
-# params=[1.03,7.4]
-
-
-global Mdot, Edot, rs, verbose
-Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], 1
-rs = rSonic(Ts)
-
-
-inic = [Ts, 2.0]
-r_outer = 1e9 # stop at 10 000 km
-r = np.linspace(rs, r_outer, 5000)
-
-## WITH odeint
-# r = np.linspace(rs, r_outer, 5000)
-# result,_ = odeint(dr, inic, r, args=(False,), atol=1e-6,
-#                 rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
-# T, phi = result[:, 0], result[:, 1]
-# r,T,phi = r[phi>2],T[phi>2],phi[phi>2]
-
-
-## WITH solve_ivp
-def hit_mach1(r,y): 
-    if r>10*rs:
-        return y[1]-2  # mach 1 is phi=2
-    else: 
-        return 1
-hit_mach1.terminal = True # stop integrating at this point
-
-def dr_wrapper_supersonic(r,y): return dr(y,r,inwards=False)
-
-sol = solve_ivp(dr_wrapper_supersonic, (rs,r_outer), inic, method='Radau', 
-                events=hit_mach1, atol=1e-6, rtol=1e-10, dense_output=True)
-# print(sol.message)
-# r = sol.t
-# T, phi = sol.y
-r=np.linspace(rs,sol.t[-1],1000)
-T, phi = sol.sol(r)
-
-
-u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True)
-
-
-
-# Something weird maybe
-# since the phi 2 stopping condition doesnt give the exact sonic point because of numerical reasons, step away from the sonic point 
-# using the same gradient and explicit euler.  Makes more sense to use u gradient than phi gradient 
-
-deltar = r[-1]-r[-2]
-Tgrad, ugrad =  (T[-1]-T[-2])/deltar , (u[-1]-u[-2])/deltar
-
-rnew = r[-1] + deltar
-Tnew = T[-1] + deltar * Tgrad
-unew = u[-1] + deltar * ugrad
-phinew = sqrt(A(Tnew)/B(Tnew))*unew + sqrt(B(Tnew)/A(Tnew))/unew
-
-#r = np.append(r, r[-1] + deltar)
-#T = np.append(T, Tnew)
-#phi = np.append(phi, phinew)
-#
-#unew, rhonew, phinew, Lstarnew, Lnew, LEdd_locnew, Enew, Pnew, csnew, taunew, lamnew = calculateVars_phi(rnew,Tnew,phinew,inwards=True,return_all=True)
-
-
-
-
-# # Now integrate again but with inwards True
-
-#r2 = np.linspace(r[-1], r[-1]+1e6, 1000)
-
-# WITH odeint
-#inic = [T[-1], 2.0]
-#result,_ = odeint(dr, inic, r2, args=(True,), atol=1e-6,
-#                rtol=1e-10,full_output=True)  # contains T(r) and phi(r)
-#T2, phi2 = result[:, 0], result[:, 1]
-
-
-# WITH solve_ivp
-def dr_wrapper_subsonic(r,y): return dr(y,r,inwards=True)
-#sol2 = solve_ivp(dr_wrapper_subsonic, (r[-1],r[-1]+1e6), [T[-1], phi[-1]], method='Radau', 
-#                atol=1e-6, rtol=1e-10, dense_output=True)
-
-sol2 = solve_ivp(dr_wrapper_subsonic, (rnew,rnew+1e6), [Tnew, phinew], method='Radau', 
-                atol=1e-6, rtol=1e-10, dense_output=True)
-r2 = np.linspace(rnew, rnew+1e6, 1000)
-
-
-T2,phi2 = sol2.sol(r2)
-
-
-u2, rho2, phi2, Lstar2, L2, LEdd_loc2, E2, P2, csv2, tau2, lam2 = calculateVars_phi(r2,T2,phi2,inwards=True,return_all=True)
-
-
-
-
-
-
-### Plots
-
-import matplotlib.pyplot as plt
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6))=plt.subplots(2,3,figsize=(15,8))
-fig.suptitle(r'Outer integration from sonic point with $T$ and $\phi$',fontsize=16)#,y=1.08)
-ax1.set_ylabel(r'T (K)',fontsize=16)
-ax2.set_ylabel(r'$\phi$',fontsize=16)
-ax3.set_ylabel(r'$\lambda$',fontsize=16)
-ax4.set_ylabel(r'$\rho$',fontsize=16)
-ax5.set_ylabel(r'$L$ (erg s$^{-1}$)',fontsize=16)
-ax6.set_ylabel(r'$\tau^*=\kappa\rho r$',fontsize=16)
-for ax in (ax4,ax5,ax6): ax.set_xlabel('r (cm)',fontsize=16)
-# for ax in (ax1,ax2,ax3,ax4,ax5,ax6): 
-#     lab = (r'$\phi<2$') if ax==ax2 else None
-#     ax.axvspan(rbad,r[-1]*2,color='gray',alpha=0.5,label=lab)
-#     ax.set_xlim([0.7*r[0],1.5*r[-1]])
-
-ax1.loglog(r,T,'k-',lw=2)       , ax1.loglog(r2,T2,'k.--',lw=2)
-ax2.semilogx(r,phi,'k-',lw=2)   , ax2.loglog(r2,phi2,'k.--',lw=2)
-ax3.semilogx(r,lam)             , ax3.semilogx(r2,lam2,'--')
-ax4.loglog(r,rho)               , ax4.loglog(r2,rho2,'.--')
-ax5.loglog(r,L)                 , ax5.loglog(r2,L2,'--')
-ax5.loglog(r,4*pi*r**2*sigmarad*T**4,color='r',label=r'$4\pi r^2\sigma T^4$')
-ax5.loglog(r2,4*pi*r2**2*sigmarad*T2**4,color='r',linestyle='--')
-ax6.loglog(r,tau)               , ax6.loglog(r2,tau2,'--')
-
-# ax2.legend()
-ax5.legend()
-
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-
-fig,ax=plt.subplots(1,1)
-ax.set_ylabel(r'Mach',fontsize=16)
-ax.loglog(r,u/cs,'.-')
-ax.loglog(r2,u2/csv2,'.-')
-ax.axhline(1,color='k',linestyle='--')
-ax.set_xlabel('r (cm)',fontsize=16)
-ax.set_xlim([0.7*r[0],1.5*r[-1]])
-
-b1 = Beta(rho,T)
-b2 = Beta(rho2,T2)
-fig,ax=plt.subplots(1,1)
-ax.set_ylabel(r'(4-3\beta)/(4-4\beta)',fontsize=16)
-ax.loglog(r,(4-3*b1)/(4-4*b1))
-ax.loglog(r2,(4-3*b2)/(4-4*b2))
-ax.axhline(1,color='k',linestyle='--')
-ax.set_xlabel('r (cm)',fontsize=16)
-ax.set_xlim([0.7*r[0],1.5*r[-1]])
-
-
-
-# ### to see what goes wrong, return all gradient terms
-
-def dr2(inic, r, inwards):
-
-    T, phi = inic[:2]
-    u, rho, phi, Lstar = calculateVars_phi(r, T, phi=phi, inwards=inwards)
-
-    if FLD:
-        Lam = FLD_Lam(Lstar,r,u,T)
-        dlnT_dlnr_term1 = -Tstar(Lstar, T, r, rho, u)/(3*Lam)
-        dlnT_dlnr_term2 = - 1/Swz(r) * GM/c**2/r
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u)/(3*Lam) - 1/Swz(r) * GM/c**2/r
-#    else:
-#        dlnT_dlnr_term1 = -Tstar(Lstar, T, r, rho, u)
-#        dlnT_dlnr_term2 = - 1/Swz(r) * GM/c**2/r
-#        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
-
-    dT_dr = T/r * dlnT_dlnr
-
-    # dPhi
-    mach = u/sqrt(B(T))
-    dphi_dr_term1 = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr 
-    dphi_dr_term2 = - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
-    dphi_dr = (A(T)*mach**2-1)*(3*B(T)-2*A(T)*c**2)/(4*mach*A(T)**(3/2)*c**2*r) * dlnT_dlnr - numerator(r, T, u)/(u*r*sqrt(A(T)*B(T)))
-
-    # dv
-    dlnv_dlnr_num = numerator(r,T,u)
-    dlnv_dlnr_denom = B(T)-u**2*A(T)
-    if r<rs+10e5:
-        dlnv_dlnr=1
-    else:
-        dlnv_dlnr = dlnv_dlnr_num/dlnv_dlnr_denom
     
-    # numerator of dv
-    num_term1 = GM/r/Swz(r) * (A(T)-B(T)/c**2)
-    num_term3 =  - 2*B(T)
-    if FLD:
-        num_term2 = -C(Lstar, T, r, rho, u)/(3*Lam)
-    else:
-        num_term2 = -C(Lstar, T, r, rho, u)
-
-    return [dlnT_dlnr_term1, dlnT_dlnr_term2, dlnT_dlnr, dT_dr, 
-            dphi_dr_term1, dphi_dr_term2, dphi_dr,              
-            dlnv_dlnr_num, dlnv_dlnr_denom, dlnv_dlnr,           
-            num_term1, num_term2, num_term3]
-
-
-nobjects=13
-stuff = [[] for i in range(nobjects)]
-
-
-# supersonic, inwards = True, False
-inwards = False
-for Ti,phii,ri in zip(T,phi,r):
-
-    things = dr2([Ti,phii],ri,inwards)
-    for i in range(nobjects):
-        stuff[i].append(things[i])
-
-dlnT_dlnr_term1,dlnT_dlnr_term2,dlnT_dlnr,dT_dr, dphi_dr_term1, dphi_dr_term2,dphi_dr,dlnv_dlnr_num,dlnv_dlnr_denom,dlnv_dlnr,num_term1,num_term2,num_term3 = stuff
-
-inwards = True
-stuff = [[] for i in range(nobjects)]
-for Ti,phii,ri in zip(T2,phi2,r2):
-
-    things = dr2([Ti,phii],ri,inwards)
-    for i in range(nobjects):
-        stuff[i].append(things[i])
-
-dlnT_dlnr_term1_2,dlnT_dlnr_term2_2,dlnT_dlnr_2,dT_dr_2, dphi_dr_term1_2, dphi_dr_term2_2,dphi_dr_2,dlnv_dlnr_num_2,dlnv_dlnr_denom_2,dlnv_dlnr_2,num_term1_2,num_term2_2,num_term3_2 = stuff
 
 
 
 
 
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6))=plt.subplots(2,3,figsize=(15,8))
-fig.suptitle(r'Investigating $T$ and $\phi$ gradient terms ',fontsize=16)#,y=1.08)
-ax1.set_ylabel(r'dlnT/dlnr term 1',fontsize=16)
-ax2.set_ylabel(r'dlnT/dlnr term 2',fontsize=16)
-ax3.set_ylabel(r'dlnT/dlnr',fontsize=16)
-ax4.set_ylabel(r'd$\phi$/dr term 1',fontsize=16)
-ax5.set_ylabel(r'd$\phi$/dr term 2',fontsize=16)
-ax6.set_ylabel(r'd$\phi$/dr',fontsize=16)
-for ax in (ax4,ax5,ax6): ax.set_xlabel('r (cm)',fontsize=16)
-for ax in (ax1,ax2,ax3,ax4,ax5): 
-    ax.set_xlim([0.7*r[0],1.5*r[-1]])
 
-ax1.semilogx(r,dlnT_dlnr_term1)             , ax1.semilogx(r2,dlnT_dlnr_term1_2,'.') 
-ax2.semilogx(r,dlnT_dlnr_term2)             , ax2.semilogx(r2,dlnT_dlnr_term2_2) 
-ax3.semilogx(r,dlnT_dlnr)                   , ax3.semilogx(r2,dlnT_dlnr_2)
-# for ax in (ax1,ax2,ax3): ax.set_yscale('symlog')
-ax4.semilogx(r,dphi_dr_term1)               , ax4.semilogx(r2,dphi_dr_term1_2)
-ax5.semilogx(r,dphi_dr_term2)               , ax5.semilogx(r2,dphi_dr_term2_2)
-ax6.semilogx(r,dphi_dr)                     , ax6.semilogx(r2,dphi_dr_2)
+### For testing when making modifications to this script
 
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+use_lsoda_remove = 0
+from IO import load_roots
+x,z = load_roots()
 
+## Just one solution
+# err1,err2=MakeWind(z[20],x[20], Verbose=True)
+# # err1,err2=MakeWind([1.02,7.1],18.9)
+# print(err1,err2)
 
-
-
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6))=plt.subplots(2,3,figsize=(15,8))
-fig.suptitle(r'Investigating velocity gradient terms ',fontsize=16)
-ax1.set_ylabel(r'dlnv/dlnr numerator',fontsize=16)
-ax2.set_ylabel(r'dlnv/dlnr denominator',fontsize=16)
-ax3.set_ylabel(r'dlnv/dlnr',fontsize=16)
-ax4.set_ylabel(r'GM/r term',fontsize=16)
-ax5.set_ylabel(r'-C term',fontsize=16)
-ax6.set_ylabel(r'-2B term',fontsize=16)
-for ax in (ax4,ax5,ax6): ax.set_xlabel('r (cm)',fontsize=16)
-for ax in (ax1,ax2,ax3,ax4,ax5,ax6): 
-    ax.set_xlim([0.7*r[0],1.5*r[-1]])
-
-ax1.semilogx(r,dlnv_dlnr_num)           , ax1.semilogx(r2,dlnv_dlnr_num_2,'.')
-ax2.semilogx(r,dlnv_dlnr_denom)         , ax2.semilogx(r2,dlnv_dlnr_denom_2)
-ax3.semilogx(r,dlnv_dlnr)               , ax3.semilogx(r2,dlnv_dlnr_2)
-ax3.set_ylim([-2,2])
-
-ax4.semilogx(r,num_term1)               , ax4.semilogx(r2,num_term1_2)
-ax5.semilogx(r,num_term2)               , ax5.semilogx(r2,num_term2_2,'.')
-ax6.semilogx(r,num_term3)               , ax6.semilogx(r2,num_term3_2)
-
-
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-
-
-plt.show()
-
+## All solutions
+for logmdot,root in zip(x,z):
+   err1,err2=MakeWind(root,logmdot)
+   print('%.3e \t-\t %.3e\n'%(err1,err2))

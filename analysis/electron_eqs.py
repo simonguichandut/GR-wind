@@ -12,7 +12,6 @@ from IO import load_params,read_from_file
 logMdot=17.3
 
 R,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs = read_from_file(logMdot)
-R,u,cs = R*1e5,u*1e5,cs*1e5
 
 
 from wind_GR import A,B,C,A_e,B_e,C_e

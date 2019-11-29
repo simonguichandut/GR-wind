@@ -13,7 +13,7 @@ Edot = 1.025426*LEdd # from solutions
 from IO import *
 R0,u0,cs0,rho0,T0,P0,phi0,L0,Lstar0,E0,tau0,rs0=read_from_file(logMdot)
 # print(R0[0],u0[0],cs0[0])
-r0,u0,cs0=R0*1e5,u0*1e5,cs0*1e5
+r0=R0
 
 # # Are we having problems because numbers in the text file are rounded to "only" 5 decimal places? Instead let's try making the wind directly
 # logMdots,roots = load_roots()
@@ -339,13 +339,13 @@ def drFLD(r, T, phi, Tprev, rprev, uprev):
 
 
 
-    print('lambda = %.5f \t num1/num2 = %.5f \t pacnum/fldnum = %.5f \t pacdphi/flddphi = %.5f'\
-        %(Lam , pacnum1/pacnum2 , pacnum/fldnum , dphi_dr_pac/dphi_dr_fld))
+    # print('lambda = %.5f \t num1/num2 = %.5f \t pacnum/fldnum = %.5f \t pacdphi/flddphi = %.5f'\
+        # %(Lam , pacnum1/pacnum2 , pacnum/fldnum , dphi_dr_pac/dphi_dr_fld))
 
 
     # which to use
-    dlnT_dlnr,dphi_dr = dlnT_dlnr_pac , dphi_dr_pac
-    # dlnT_dlnr,dphi_dr = dlnT_dlnr_fld , dphi_dr_fld
+    # dlnT_dlnr,dphi_dr = dlnT_dlnr_pac , dphi_dr_pac
+    dlnT_dlnr,dphi_dr = dlnT_dlnr_fld , dphi_dr_fld
 
     dT_dr = T/r * dlnT_dlnr
 
@@ -359,7 +359,7 @@ ax2.loglog(r0,rho0,'k-',linewidth=0.8)
 ax3.semilogx(r0,L0/LEdd,'k-',linewidth=0.8)
 ax4.loglog(r0,phi0,'k-',linewidth=0.8)
 ax5.loglog(r0,u0,'k-',linewidth=0.8)
-ax6.semilogx(r0[1:],lam0,'k.-',linewidth=0.8)
+ax6.semilogx(r0[1:],lam0,'k-',linewidth=0.8)
 ax4.set_xlabel(r'$r$ (cm)',fontsize=14)
 ax5.set_xlabel(r'$r$ (cm)',fontsize=14)
 ax6.set_xlabel(r'$r$ (cm)',fontsize=14)

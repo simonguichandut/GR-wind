@@ -10,7 +10,6 @@ Edot = 1.025426*LEdd # from solutions
 from IO import *
 R0,u0,cs0,rho0,T0,P0,phi0,L0,Lstar0,E0,tau0,rs0=read_from_file(logMdot)
 # print(R0[0],u0[0],cs0[0])
-r0,u0,cs0=R0*1e5,u0*1e5,cs0*1e5
 
 # fig,ax=plt.subplots(1,1)
 # ax.loglog(r0,Lstar0*(1+u0**2/c**2)**(-1)*Y(r0,u0)**(-2))
