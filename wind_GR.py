@@ -1,13 +1,12 @@
 ''' Main code to calculate winds '''
 
-from scipy.optimize import brentq
-from scipy.integrate import odeint,solve_ivp
-from scipy.interpolate import interp1d
-import numpy as np
-from numpy import linspace, sqrt, log10, array, pi
-import IO
 import os
+import numpy as np
+from numpy import linspace, logspace, sqrt, log10, array, pi, gradient
+from scipy.optimize import brentq
+from scipy.integrate import solve_ivp
 from collections import namedtuple
+import IO
 import physics
 
 # --------------------------------------- Constants and parameters --------------------------------------------
@@ -43,7 +42,6 @@ def Swz(r):  # Schwartzchild metric term
 
 def Lcrit(r,rho,T): # local critical luminosity
     return LEdd * (eos.kappa0/eos.kappa(rho,T)) *Swz(r)**(-1/2)
-    
 
 # --------------------------------------- Flux-limited diffusion ------------------------------------------------
 # Modified version of Pomraning (1983) FLD prescription.  See Guichandut & Cumming (2020)
@@ -64,7 +62,6 @@ def FLD_Lam(Lstar,r,v,T):
             raise Exception
         Lam = 1/12 * ( (2-3*alpha) + sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
         return Lam
-
 
 # ----------------------------------------- Paczynski&Proczynski ------------------------------------------------
 
@@ -109,7 +106,6 @@ def C_e(Lstar, T, r, rho, v):
         return (Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)) / (3 * FLD_Lam(Lstar,r,v,T))   # FLD lambda only appears in C in the gradient equations
     else:
         return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
-
 
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
@@ -320,12 +316,16 @@ def outerIntegration(returnResult=False):
         result1 = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
                 events=hit_mach1, atol=1e-6, rtol=1e-10, dense_output=True)
 
+        if verbose: print('First FLD integration message:', result1.message)
+
         rs2 = result1.t[-1] # second sonic point
         inic = result1.sol(rs2)
         assert(inic[1]==2)
 
         result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
                 atol=1e-6, rtol=1e-10, dense_output=True)
+
+        if verbose: print('Second FLD integration message:',result2.message)
 
         if returnResult:
             return result1, result2
@@ -342,6 +342,8 @@ def outerIntegration(returnResult=False):
 
         result = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='RK45',
                     events=(hit_tau_out,hit_mach1), atol=1e-6, rtol=1e-6, dense_output=True)
+
+        if verbose: print(result.message)
 
         if result.status == 1:              # A termination event occured
         
@@ -373,7 +375,7 @@ def outerIntegration(returnResult=False):
         if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", tau[-2])
 
         # check if tau started to increase anywhere
-        grad_tau = np.gradient(tau)
+        grad_tau = gradient(tau)
 
         if True in (grad_tau>0):
             flag_tauincrease = 1
@@ -406,6 +408,8 @@ def innerIntegration_r():
     result = solve_ivp(dr_wrapper_subsonic, (rs,0.95*rs), inic, method='RK45',
                     atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(r) and phi(r)
 
+    if verbose: print(result.message)
+
     return result
 
 
@@ -432,6 +436,8 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 
     result = solve_ivp(drho, (rho95,rhomax), inic, method='Radau',
                 events = (hit_Pinner,hit_zerospeed), atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(rho) and r(rho)
+
+    if verbose: print(result.message)
 
     if result.status == 1 :         # A termination event occured
 
@@ -498,13 +504,13 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
             # First inner integration
             r95 = 0.95*rs
-            r_inner1 = np.linspace(rs, r95, 1000)
+            r_inner1 = linspace(rs, r95, 1000)
             result_inner1 = innerIntegration_r()
             T95, phi95 = result_inner1.sol(r95)
             _, rho95, _, _ = calculateVars_phi(r95, T95, phi=phi95, subsonic=True)
 
             # Second inner integration
-            rho_inner2 = np.logspace(log10(rho95), log10(rhomax), 2000)
+            rho_inner2 = logspace(log10(rho95), log10(rhomax), 2000)
             # error2 = innerIntegration_rho(rho_inner2, T95)
             error2 = innerIntegration_rho(rho95, T95)
 
@@ -541,7 +547,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
             # First inner integration
             r95 = 0.95*rs
-            r_inner1 = np.linspace(rs, r95, 200)
+            r_inner1 = linspace(rs, r95, 200)
             result_inner1 = innerIntegration_r()
             T95, phi95 = result_inner1.sol(r95)
             T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
@@ -551,7 +557,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
 
             # Second inner integration 
             result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-            rho_inner2 = np.logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
+            rho_inner2 = logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
             T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
             
 
@@ -571,8 +577,6 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
             u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_rho(R, T, rho=Rho, return_all=True)
 
             return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam, rs, Edot, Ts)
-
-
 
 
 

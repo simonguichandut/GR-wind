@@ -1,0 +1,2 @@
+logMdot 	 Edot/LEdd    	 log10(Ts)   
+18.00   	 1.02019093  	 7.02099732 

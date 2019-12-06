@@ -97,12 +97,16 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
 
     find_first_root = 1
     if usefile:
-        logMDOTS,roots = load_roots()
-        if logMdot in logMDOTS:
-            print('First root from file')
-            z0 = roots[logMDOTS.index(logMdot)]
-            z1 = [z0[0]+0.001,z0[1]+0.01]
-            find_first_root = 0
+        
+        try:
+            logMDOTS,roots = load_roots()
+            if logMdot in logMDOTS:
+                print('First root from file')
+                z0 = roots[logMDOTS.index(logMdot)]
+                z1 = [z0[0]+0.001,z0[1]+0.01]
+                find_first_root = 0
+        except:
+            print('Root file does not exist.  Will try to find an appropriate root to start from.')
 
     if find_first_root:
                     
@@ -118,7 +122,7 @@ def RootFinder(logMdot,logTs0=7.4,box='on',Verbose=0,usefile=1):
             if Edotmin>1.1:
                 sys.exit('Inadequate initial Ts0, exiting..')
                 
-        # Initial guesses (the second one just needs to be closer to the solution)
+        # Initial guesses 
         z0,z1 = [Edotmin+0.002,logTs0] , [Edotmin+0.0025,logTs0-0.01]
 
     # It happens that z1 does not work..
