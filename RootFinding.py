@@ -182,7 +182,7 @@ def driver(logmdots,usefile=1):
             save_root(logMDOT,root)
         except:
             problems.append(logMDOT)
-            print('PROBLEM WITH LOGMDOT = ',logMDOT,'\n Trying again with verbose...')
+            print('PROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose...')
             try : RootFinder(logMDOT,logTs0=logTs0,usefile=usefile,Verbose=1)
             except: pass
         
@@ -198,13 +198,15 @@ def driver(logmdots,usefile=1):
 # Command line call
 if len(sys.argv)>1:
     
-    if sys.argv[1]!='all' and ('[' not in sys.argv[1] or ']' not in sys.argv[1]):
-        sys.exit('Give logmdots as [a,b,c,...]')
+    if sys.argv[1]!='all' and ' ' in sys.argv[1]:           # probably need a better parser..
+        sys.exit('Give logmdots as a,b,c,...')
 
     if sys.argv[1]=='all':
         logmdots='all'
-    else:
+    elif ',' in sys.argv[1]:
         logmdots = eval(sys.argv[1])
+    else:
+        logmdots = [eval(sys.argv[1])]
 
     if len(sys.argv)<3:
         driver(logmdots)

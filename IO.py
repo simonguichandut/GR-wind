@@ -13,6 +13,7 @@ def load_params():
         y_inner = float(f.readline().split()[1])
         tau_out = float(f.readline().split()[1])
         comp = f.readline().split()[1]
+        EOS_type = f.readline().split()[1]
         FLD = eval(f.readline().split()[1]) # boolean
         next(f)
         next(f)
@@ -20,13 +21,13 @@ def load_params():
         save = f.readline().split()[1]
         img = f.readline().split()[1]
         
-    return M,R,y_inner,tau_out,comp,FLD,mode,save,img
+    return M,R,y_inner,tau_out,comp,EOS_type,FLD,mode,save,img
 
 
 def get_name():  # We give various files and directories the same name corresponding to the setup given in the parameter file
 
-    M,R,y_inner,tau_out,comp,FLD,_,_,_ = load_params()
-    name = '_'.join( [ comp , str(M) , ('%2d'%R) , ('%1d'%tau_out) , ('%1d'%log10(y_inner)) ] )
+    M,R,y_inner,tau_out,comp,EOS_type,FLD,_,_,_ = load_params()
+    name = '_'.join( [ comp , EOS_type, ('M%.1f'%M) , ('R%2d'%R) , ('tau%1d'%tau_out) , ('y%1d'%log10(y_inner)) ] )
     if FLD: name += '_FLD'
     return name
 
@@ -38,12 +39,12 @@ def save_root(logMDOT,root):
 
     if not os.path.exists(path):
         f = open(path,'w+')
-        f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
+        f.write('{:<7s} \t {:<12s} \t {:<12s}\n'.format(
             'logMdot' , 'Edot/LEdd' , 'log10(Ts)'))
     else:
         f = open(path,'a')
 
-    f.write('{:<7.2f} \t {:<10f} \t {:<10f}\n'.format(
+    f.write('{:<7.2f} \t {:<11.8f} \t {:<11.8f}\n'.format(
             logMDOT,root[0],root[1]))
 
 
@@ -79,33 +80,31 @@ def make_directories():
 
 
 
-def write_to_file(logMdot,data):
+def write_to_file(logMdot,wind):
 
-    # data is expected to be list of the following arrays : R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs (rs is just a number)
+    # Expecting wind type namedtuple object
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
     filename = path + str(logMdot) + '.txt'
 
-    R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs = data
-
     with open(filename,'w') as f:
         f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
             'r (cm)','u (cm/s)','cs (cm/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau'))
 
-        for i in range(len(R)):
+        for i in range(len(wind.r)):
             f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
-                (R[i] , u[i] , cs[i] , Rho[i] , T[i] , P[i] , Phi[i] , L[i] , Lstar[i] , E[i], tau[i]))
+                (wind.r[i] , wind.u[i] , wind.cs[i] , wind.rho[i] , wind.T[i] , wind.P[i] , wind.phi[i] , wind.L[i] , wind.Lstar[i] , wind.E[i], wind.tau[i]))
 
-            if R[i]!=rs:
+            if wind.r[i]!=wind.rs:
                 f.write('\n')
             else:
                 f.write('\t sonic point\n')
 
 
     # Flux Mdot file 
-    Lbs = Lstar[0]
-    Fbs = Lbs/(4*pi*R[0]**2)
+    Lbs = wind.Lstar[0]
+    Fbs = Lbs/(4*pi*wind.r[0]**2)
 
     filename = path + 'Flux_Mdot.txt'
     if not os.path.exists(filename):

@@ -12,20 +12,21 @@ rc('text', usetex = True)
 mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
 mpl.rcParams.update({'font.size': 15})
 
-from wind_GR import MakeWind,kappa
-from IO import load_params,load_roots,make_directories,clean_rootfile,save_plots,write_to_file
+from wind_GR import MakeWind
+import physics
+from IO import *
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 
 # Parameters
-M, RNS, y_inner, tau_out, comp, FLD, mode, save, img = load_params()
+M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = load_params()
+eos = physics.EOS(comp)
     
 # constants
 c = 2.99792458e10
-kappa0 = 0.2
 GM = 6.6726e-8*2e33*M
-LEdd = 4*pi*c*GM/kappa0
+LEdd = 4*pi*c*GM/eos.kappa0
 g = GM/(RNS*1e5)**2
 
 # Make directories for data and plots
@@ -97,29 +98,27 @@ for logMdot, root in zip(logMDOTS, roots):
     global Mdot, verbose
     Mdot, verbose = 10**logMdot, 0
 
-    R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(
-        root, logMdot, mode='wind')
+    w = MakeWind(root, logMdot, mode='wind')
 
-    Lbs.append(Lstar[0])
+    Lbs.append(w.Lstar[0])
 
     if save:
-        data = [R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, rs]
-        write_to_file(logMdot, data)
+        write_to_file(logMdot, w)
 
     if logMdot in (17.25, 17.5, 17.75, 18, 18.25 , 18.5, 18.75, 19):
 
         c = colors[int(np.floor(i/2)-1)]
         ls = '-' if i%2==0 else '--'
 
-        ax1.semilogx(R, Lstar/LEdd,color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        ax1.semilogx(w.r, w.Lstar/LEdd,color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         beautify(fig1,ax1)
 
         def myloglogplot(ax,x,y):
                 ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
         def draw_sonicpoint(ax,x,y):
-                sonic = list(R).index(rs)
+                sonic = list(w.r).index(w.rs)
                 ax.loglog([x[sonic]] , [y[sonic]], marker='.', color='k')
-        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (R,Rho,R,R,Rho,Rho) , (T,T,u,P,kappa(Rho,T),tau)):
+        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (w.r,w.rho,w.r,w.r,w.rho,w.rho) , (w.T,w.T,w.u,w.P,eos.kappa(w.rho,w.T),w.tau)):
                 myloglogplot(ax,x,y)
                 if i%2==0:draw_sonicpoint(ax,x,y)
                 beautify(fig,ax)
