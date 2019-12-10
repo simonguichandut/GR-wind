@@ -39,6 +39,6 @@ Pre-solved roots are available in the `wind_solutions` subfolder, organized in d
 
 ## Example plots
 
-![](/results/He_1.4_12_3_8/plots/Luminosity.png)
-![](/results/He_1.4_12_3_8/plots/Temperature1.png)
-![](/results/He_1.4_12_3_8/plots/Velocity.png)
+![](/results/He_IGDE_M1.4_R12_tau3_y8/plots/Luminosity.png)
+![](/results/He_IGDE_M1.4_R12_tau3_y8/plots/Temperature1.png)
+![](/results/He_IGDE_M1.4_R12_tau3_y8/plots/Velocity.png)

@@ -5,11 +5,6 @@ import numpy as np
 from numpy.linalg import norm
 from numpy import array
 import pickle    
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from matplotlib import ticker
-from numpy import array
-
 from wind_GR import MakeWind
 
 
@@ -25,11 +20,12 @@ def get_map(logMDOT):
         print('\n\n LOG TS = %.3f \n\n'%Ts)
         for Edot in Edotvals:
             try:
-                z = MakeWind([Edot,Ts],logMDOT)
+                z = MakeWind([Edot,Ts],logMDOT, IgnoreErrors=True)
                 print(Edot,' : ',z)
             except:
-                z=[300,300]
-                print("\nFatal error in integration, skipping...\n")
+                pass
+            #     z=[300,300]
+            #     print("\nFatal error in integration, skipping...\n")
 
             Errors[0][i].append(z[0])
             Errors[1][i].append(z[1])
@@ -41,12 +37,43 @@ def get_map(logMDOT):
     print('\n\nFINISHED \nMap file saved to ',filename)    
 
 
-def plot_map(logMDOT,img='png'):
+
+#### Plotting
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from matplotlib import ticker
+from numpy import array
+
+
+plt.style.use('seaborn-paper')
+nice_fonts = {
+        # Use LaTeX to write all text
+        "text.usetex": True,
+        "font.family": "serif",
+        # Use 10pt font in plots, to match 10pt font in document
+        "axes.labelsize": 10,
+        "font.size": 10,
+        # Make the legend/label fonts a little smaller
+        "legend.fontsize": 8,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        # Non-italic math
+        "mathtext.default": "regular"
+}
+
+mpl.rcParams.update(nice_fonts)
+from my_plot import set_size
+
+
+def plot_map(logMDOT,img='pdf'):
 
     filename = 'analysis/errorspaces/save'+str(logMDOT)+'.p'
     [Edotvals,Tsvals,Errors]=pickle.load(open(filename,'rb'))
 
-    fig,(ax1,ax2) = plt.subplots(1,2,figsize=(15,8))    
+    fig,(ax1,ax2) = plt.subplots(1,2,figsize=set_size('mnras1col'))    
+    fig.subplots_adjust(wspace=0.25)
     ax1.patch.set_color('.25')
     ax2.patch.set_color('.25')
 
@@ -67,28 +94,66 @@ def plot_map(logMDOT,img='png'):
     im2 = ax2.contourf(Edotvals,Tsvals,np.abs(array(Errors[1])),levs,norm=colors.LogNorm(),cmap=cmap)
     fig.colorbar(im1,ax=ax1,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
     fig.colorbar(im2,ax=ax2,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
-    ax1.set_title(r'Error #1 : |$L_{phot}-4\pi r^2\sigma T^4$|/$L_{phot}$',fontsize=15)
-    ax2.set_title(r'Error #2 : |$R_{base}-R_{NS}$|/$R_{NS}$',fontsize=15)    
+    ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r^2\sigma T^4\vert$/$L_{ph}$')
+    ax2.set_title(r'Error 2 : $\vert r_{b}-R_{NS}$/$R_{NS}\vert$')    
 
 
-    ax1.set_xlabel(r'$\dot{E}/L_{Edd}$',fontsize=15)
-    ax2.set_xlabel(r'$\dot{E}/L_{Edd}$',fontsize=15)
-    ax1.set_ylabel(r'log $T_s$ (K)',fontsize=15)
+    ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
+    ax2.set_xlabel(r'$\dot{E}/L_{Edd}$')
+    ax1.set_ylabel(r'log $T_s$ (K)')
 
                 
     ax1.set_xlim([Edotvals[0],Edotvals[-1]])
     ax1.set_ylim([Tsvals[0],Tsvals[-1]])  
     ax2.set_xlim([Edotvals[0],Edotvals[-1]])
     ax2.set_ylim([Tsvals[0],Tsvals[-1]])     
-
-    plt.tight_layout()
+    
+    
+    # Add scatters for errors
+    cases_left = ('Mach 1 before photosphere',r'$\tau^*_{min}>3$','?','tau^*(r_c)<3')
+    cases_right = ('u=0','Diverging (NaN)','?')
+    legendleft,legendright = False,False
+    
+    for E,caseL,caseR in zip((100,200,300,400),cases_left,cases_right):
+    
+        # Left plot (error on outer int)
+        Epointsleft,Tspointsleft = [],[]
+        for i in range(len(Edotvals)):
+            for j in range(len(Tsvals)):
+                if Errors[0][j][i]==E:
+                    Epointsleft.append(Edotvals[i])
+                    Tspointsleft.append(Tsvals[j])
+        
+        if len(Epointsleft)>0:
+            ax1.scatter(Epointsleft,Tspointsleft,s=5,label=caseL)
+            legendleft=True
+            
+        
+        # Right plot (error on inner int)
+        Epointsright,Tspointsright = [],[]
+        for i in range(len(Edotvals)):
+            for j in range(len(Tsvals)):
+                if Errors[1][j][i]==E:
+                    Epointsright.append(Edotvals[i])
+                    Tspointsright.append(Tsvals[j])
+        
+        if len(Epointsright)>0:
+            ax2.scatter(Epointsright,Tspointsright,s=5,label=caseR)
+            legendright=True
+    
+    
+    if legendleft: ax1.legend(loc=4)
+    if legendright: ax2.legend(loc=4)
+        
+    
+    # plt.tight_layout()
     
     filename = str(logMDOT).replace('.','_') # dont want points in filenames
     fig.savefig('analysis/errorspaces/'+filename+'.'+img)    
 
 # indivual call
 # get_map(17.75)
-# plot_map(17.75)
+#plot_map(18.5)
 
 
 # command line call
@@ -100,7 +165,7 @@ if len(sys.argv)>1:
     if mode=='get':
         get_map(eval(logMdot))
     elif mode=='plot':
-        img = 'png' if len(sys.argv)<4 else sys.argv[3]
+        img = 'pdf' if len(sys.argv)<4 else sys.argv[3]
         plot_map(eval(logMdot),img=img)
     
         

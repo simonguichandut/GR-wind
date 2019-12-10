@@ -297,7 +297,7 @@ def outerIntegration(returnResult=False):
     ''' Integrates out from the sonic point until the photosphere is reached '''
 
     if verbose:
-        print('\n**** Running outerIntegration ****')
+        print('**** Running outerIntegration ****')
 
     inic = [Ts, 2.0]
     rmax = 50*rs
@@ -340,6 +340,14 @@ def outerIntegration(returnResult=False):
             return rho*eos.kappa(rho,T)*r - tau_out
         hit_tau_out.terminal = True
 
+
+        # Sonic point might be optically thin. Before we integrate, check if we start already at tau<3
+        taus = hit_tau_out(rs,inic) + tau_out
+        if taus < tau_out:
+            print('Sonic point is optically thin! Tau = %.3f'%taus)
+            return +400
+
+        # Now go
         result = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='RK45',
                     events=(hit_tau_out,hit_mach1), atol=1e-6, rtol=1e-6, dense_output=True)
 
@@ -369,10 +377,13 @@ def outerIntegration(returnResult=False):
 
   
         #### Further analysis if we did not manage to reach a photosphere
+        flag_tauincrease = 0
 
-        tau = array(hit_tau_out(result.t,result.y)) + tau_out 
+        tau = []
+        for ti,yi in zip(result.t,result.y.transpose()):
+            tau.append( hit_tau_out(ti,yi) + tau_out)
 
-        if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", tau[-2])
+        if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", min(tau))
 
         # check if tau started to increase anywhere
         grad_tau = gradient(tau)
@@ -399,7 +410,7 @@ def innerIntegration_r():
     ''' Integrates in from the sonic point to 95% of the sonic point, using r as the independent variable '''
     
     if verbose:
-        print('\n**** Running innerIntegration R ****')
+        print('**** Running innerIntegration R ****')
     inic = [Ts, 2.0]
 
     # result,_ = odeint(dr, inic, r, args=(True,), atol=1e-6,
@@ -418,7 +429,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         We want to match the location of p=p_inner to the NS radius '''
 
     if verbose:
-        print('\n**** Running innerIntegration RHO ****')
+        print('**** Running innerIntegration RHO ****')
 
     inic = [T95, 0.95*rs]
 
@@ -432,10 +443,18 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         r = y[1]
         u = Mdot/sqrt((4*pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
         return u
-    hit_zerospeed.terminal = True
+    hit_zerospeed.terminal = True        
 
-    result = solve_ivp(drho, (rho95,rhomax), inic, method='Radau',
-                events = (hit_Pinner,hit_zerospeed), atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(rho) and r(rho)
+    # Issue wiht solve_ivp in scipy 1.3.0 (fixed in yet to be released 1.4.0) https://github.com/scipy/scipy/pull/10802
+    # Will have a typeError when reaching NaNs, and won't return the result properly.
+    
+    try:
+        result = solve_ivp(drho, (rho95,rhomax), inic, method='Radau',
+                    events = (hit_Pinner,hit_zerospeed), atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(rho) and r(rho)
+    except:
+        if verbose: print('Surface pressure never reached (NaNs before reaching p_inner)')
+        return +200
+
 
     if verbose: print(result.message)
 
@@ -444,6 +463,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         if len(result.t_events[0]) == 1:  # The correct termination event occured (P_inner)
             
             rbase = result.y[1][-1]
+            if verbose: print('Found base at r = %.2f km\n' % (rbase/1e5))
 
             if returnResult:
                 return result
@@ -455,18 +475,18 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
             p = hit_Pinner(result.t[-1],result.y[-1]) + P_inner
             col = p/g
             if verbose: print('Zero velocity before pressure condition reached.\
-                                Last pressure : %.3e (y = %.3e)'%(p,col))
+                                Last pressure : %.3e (y = %.3e)\n'%(p,col))
         
     else:
-        if verbose: print('Pressure coniditon nor zero velocity reached. Something else went wrong')
+        if verbose: print('Pressure condition nor zero velocity reached. Something else went wrong\n')
 
     if returnResult:
         return result
     else:
         if flag_u0:
-            return +200
-        else:
             return +100
+        else:
+            return +300
 
 
 # ------------------------------------------------- Wind ---------------------------------------------------
@@ -474,7 +494,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
 Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
 
-def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
+def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and log10(Ts).
         The modes are rootsolve : not output, just obtaining the boundary errors, 
         and wind : obtain the full solutions.   '''
@@ -482,11 +502,13 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
     global Mdot, Edot, rs, Ts, verbose
     Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], Verbose
 
+    if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edot/Ledd = %.5f'%(logMdot,log10(Ts),Edot/LEdd))
+
     # Start by finding the sonic point
     rs = rSonic(Ts)
     
     if verbose:
-        print('\nFor log10Ts = %.2f, located sonic point at log10r = %.2f' %
+        print('For log10Ts = %.2f, located sonic point at log10r = %.2f' %
               (log10(Ts), log10(rs)))
 
     if mode == 'rootsolve':
@@ -497,7 +519,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0):
         # First error is given by the outer luminosity
         error1 = outerIntegration()
 
-        if error1 in (100,200,300):        # don't bother integrating inwards
+        if error1 in (100,200,300,400) and IgnoreErrors is False:   # don't bother integrating inwards (unless required to)
             return [error1, error1]
 
         else:
