@@ -95,7 +95,7 @@ def plot_map(logMDOT,img='pdf'):
     fig.colorbar(im1,ax=ax1,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
     fig.colorbar(im2,ax=ax2,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
     ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r^2\sigma T^4\vert$/$L_{ph}$')
-    ax2.set_title(r'Error 2 : $\vert r_{b}-R_{NS}$/$R_{NS}\vert$')    
+    ax2.set_title(r'Error 2 : $\vert r_{b}-R_{NS}\vert$/$R_{NS}$')    
 
 
     ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
@@ -110,11 +110,13 @@ def plot_map(logMDOT,img='pdf'):
     
     
     # Add scatters for errors
-    cases_left = ('Mach 1 before photosphere',r'$\tau^*_{min}>3$','?','tau^*(r_c)<3')
+    cases_left = (r'Mach $\rightarrow 1$',r'$\tau^*_{min}>3$','?','tau^*(r_c)<3')
     cases_right = ('u=0','Diverging (NaN)','?')
+    color_left = ('m','c','w')
+    color_right = ('r','g','k')
     legendleft,legendright = False,False
     
-    for E,caseL,caseR in zip((100,200,300,400),cases_left,cases_right):
+    for E,caseL,caseR,cl,cr in zip((100,200,300,400),cases_left,cases_right,color_left,color_right):
     
         # Left plot (error on outer int)
         Epointsleft,Tspointsleft = [],[]
@@ -125,7 +127,7 @@ def plot_map(logMDOT,img='pdf'):
                     Tspointsleft.append(Tsvals[j])
         
         if len(Epointsleft)>0:
-            ax1.scatter(Epointsleft,Tspointsleft,s=5,label=caseL)
+            ax1.scatter(Epointsleft,Tspointsleft,s=3,label=caseL,color=cl)
             legendleft=True
             
         
@@ -138,7 +140,7 @@ def plot_map(logMDOT,img='pdf'):
                     Tspointsright.append(Tsvals[j])
         
         if len(Epointsright)>0:
-            ax2.scatter(Epointsright,Tspointsright,s=5,label=caseR)
+            ax2.scatter(Epointsright,Tspointsright,s=3,label=caseR,color=cr)
             legendright=True
     
     
