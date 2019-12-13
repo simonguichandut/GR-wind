@@ -129,6 +129,14 @@ def RootFinder(logMdot,logTs0=7.4,box='on',verbose=0,usefile=1):
             elif round(logMdot-0.05,2) in logMDOTS:
                 print('First root from file (adjacent Mdot)')
                 z0 = roots[logMDOTS.index(round(logMdot-0.05,2))]
+
+            elif round(logMdot+0.1,2) in logMDOTS:
+                print('First root from file (adjacent Mdot)')
+                z0 = roots[logMDOTS.index(round(logMdot+0.1,2))]
+            
+            elif round(logMdot-0.1,2) in logMDOTS:
+                print('First root from file (adjacent Mdot)')
+                z0 = roots[logMDOTS.index(round(logMdot-0.1,2))]
                 
             z1 = [z0[0]+0.001,z0[1]+0.01]
             find_first_root = 0

@@ -21,7 +21,7 @@ def export(target = "."):
     from scipy.interpolate import interp1d
     from scipy.integrate import quad
 
-    with open(target+'wind_values_'+IO.get_name()+'txt','w') as f:
+    with open(target+'wind_values_'+IO.get_name()+'.txt','w') as f:
 
         f.write(('{:<11s} \t '*16 +'{:<11s}\n').format(
             'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)'))

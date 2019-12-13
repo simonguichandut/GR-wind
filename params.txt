@@ -7,7 +7,7 @@ y_inner 1e8		[g/cm2]
 tau_out 3		
 comp	He		(H, He or Ni..)
 EOS     IGDE    (IG = ideal gas, IGDE = ideal gas degenerate electrons, POLYN = polytropic index N)
-FLD     0    	(bool)    
+FLD    	0    	(bool)    
 
 --- Code ---
 mode	rootsolve	(rootsolve or wind)

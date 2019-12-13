@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS  # has a derivative method
 from scipy.interpolate import interp1d
-from numpy import log10
+from numpy import log10,linspace
 
 from wind_GR import MakeWind,dr
 
@@ -21,9 +21,9 @@ def plot_stuff(radius,rs,T_points,phi_points,T_func,phi_func,dT_points,dphi_poin
     fig.suptitle(title,fontsize=15)
 
     gs = gridspec.GridSpec(3, 2, height_ratios=[3, 3, 2])
-    ax = []
-    for i in range(6): ax.append(plt.subplot(gs[i]))
-    ax1,ax2,ax3,ax4,ax5,ax6 = ax
+    axes = []
+    for i in range(6): axes.append(plt.subplot(gs[i]))
+    ax1,ax2,ax3,ax4,ax5,ax6 = axes
 
  
     ax1.set_ylabel(r'log T (K)',fontsize=14)
@@ -54,48 +54,45 @@ def plot_stuff(radius,rs,T_points,phi_points,T_func,phi_func,dT_points,dphi_poin
     # Errors
     relerr_rho = (dT_points-T_func.derivative()(radius))/dT_points
     relerr_T = (dphi_points-phi_func.derivative()(radius))/dphi_points
-    ax5.plot(x,relerr_rho*100,'k-',lw=1.5)
-    ax6.plot(x,relerr_T*100,'k-',lw=1.5)
+    ax5.plot(x[1:],relerr_rho[1:]*100,'k-',lw=1.5)
+    ax6.plot(x[1:],relerr_T[1:]*100,'k-',lw=1.5)            # edge points of spline fit don't work
 
-    ax3.axvline(rs/1e5,color='m',lw=0.5)
-    ax4.axvline(rs/1e5,color='m',lw=0.5)
-    ax5.axvline(rs/1e5,color='m',lw=0.5)
-    ax6.axvline(rs/1e5,color='m',lw=0.5)
-
+    for ax in axes: ax.axvline(rs/1e5,color='m',lw=0.5)
+        
     plt.tight_layout(rect=(0,0,1,0.95))
 
 
 
-def check_solution(logMdot, sol):
+def check_solution(logMdot, wind):
 
     ''' checks solution vector's direct derivatives against analytic expressions '''
     
-    global Mdot, Edot, rs, verbose
-    R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = sol
-
-    Mdot, verbose = 10**logMdot, 0
-
     # Spline fit
-    fT,fphi = IUS(R,T), IUS(R,Phi)
+    fT,fphi = IUS(wind.r,wind.T), IUS(wind.r,wind.phi)
+
+    # Get points on spline
+    rfine = linspace(wind.r[0],wind.r[-1],10000)
+    T, phi = fT(rfine), fphi(rfine)
     
     # Analytical derivatives
     dT,dphi = [],[]
-    for ri,Ti,phii  in zip(R,T,Phi):
-        inwards = True if ri<rs else False
+    # for ri,Ti,phii  in zip(wind.r,wind.T,wind.phi):
+    for ri,Ti,phii in zip(rfine,T,phi):
+        subsonic = True if ri<wind.rs else False
         # print(inwards)
-        z = dr([Ti,phii],ri,inwards=inwards)
+        z = dr(ri,[Ti,phii],subsonic=subsonic)
         dT.append(z[0])
         dphi.append(z[1])
 
-    plot_stuff(R,rs,T,Phi,fT,fphi,dT,dphi,'Error')
+    # plot_stuff(wind.r,wind.rs,wind.T,wind.phi,fT,fphi,dT,dphi,'Error')
+    plot_stuff(rfine,wind.rs,T,phi,fT,fphi,dT,dphi,'Error')
 
 
 from IO import load_roots
 x,z = load_roots()
 
-sol = MakeWind(z[20],x[20],mode='wind')
-R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = sol
+wind = MakeWind(z[20],x[20],mode='wind')
 # fig=plt.figure()
 # plt.loglog(R,Phi,'b.')
-check_solution(x[20],sol) 
+check_solution(x[20],wind) 
 plt.show()
