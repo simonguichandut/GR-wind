@@ -644,8 +644,8 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 # logMdot, params = 18, [1.05,6.95]              # doesn't work
 
 
-logMdot,params = 17.2, [1.015,7.1]               # works
-logMdot,params = 17.2, [1.02,7.1]               # works
+# logMdot,params = 17.2, [1.015,7.1]               # works
+# logMdot,params = 17.2, [1.02,7.1]               # works
 # logMdot,params = 17.2, [1.024,7.1]               # doesnt work
 # logMdot,params = 17.2, [1.025,7.1]               # doesnt work
 logMdot,params = 17.2, [1.03,7.1]             # doesnt work

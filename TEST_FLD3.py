@@ -4,6 +4,7 @@ from wind_GR import *
 import IO
 import physics
 import sys
+from numpy import array
 
 M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
 eos = physics.EOS(comp)
@@ -18,6 +19,7 @@ if FLD is False:
 # Testing integrations
 logMdot = 18.5
 params=[1.025426   ,  7.196667]
+# params=[1.025,7.5]
 # params=[1.001   ,  7.3]
 
 # logMdot = 19
@@ -27,11 +29,11 @@ params=[1.025426   ,  7.196667]
 # params=[1.03,7.4]
 
 
-w1,w2 = MakeWind(params, logMdot, mode='wind')
+w1,w2 = MakeWind(params, logMdot, mode='wind',Verbose=1)
 r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts = w1
 r2,T2,rho2,u2,phi2,Lstar2,L2,LEdd_loc2,E2,P2,csv2,tau2,lam2,rs,Edot,Ts = w2
 
-
+rs2=r[-1]
 
 
 
@@ -59,6 +61,7 @@ ax4.loglog(r,rho)                   , ax4.loglog(r2,rho2,'.--')
 ax5.loglog(r,L)                     , ax5.loglog(r2,L2,'--')
 ax5.loglog(r,4*pi*r**2*sigmarad*T**4,color='r',label=r'$4\pi r^2\sigma T^4$')
 ax5.loglog(r2,4*pi*r2**2*sigmarad*T2**4,color='r',linestyle='--')
+ax5.axhline(LEdd,color='k')
 ax6.loglog(r,tau)                   , ax6.loglog(r2,tau2,'--')
 
 # ax2.legend()
@@ -115,8 +118,8 @@ def dr2(inic, r, subsonic):
     # dv
     dlnv_dlnr_num = numerator(r,T,u)
     dlnv_dlnr_denom = B(T)-u**2*A(T)
-    if r<rs+10e5:
-        dlnv_dlnr=1
+    if (r-rs)<1e6 or abs(r-rs2)<1e7:
+        dlnv_dlnr=0
     else:
         dlnv_dlnr = dlnv_dlnr_num/dlnv_dlnr_denom
     
@@ -195,7 +198,7 @@ ax1.set_ylabel(r'dlnv/dlnr numerator',fontsize=16)
 ax2.set_ylabel(r'dlnv/dlnr denominator',fontsize=16)
 ax3.set_ylabel(r'dlnv/dlnr',fontsize=16)
 ax4.set_ylabel(r'GM/r term',fontsize=16)
-ax5.set_ylabel(r'-C term',fontsize=16)
+ax5.set_ylabel(r'C term',fontsize=16)
 ax6.set_ylabel(r'-2B term',fontsize=16)
 for ax in (ax4,ax5,ax6): ax.set_xlabel('r (cm)',fontsize=16)
 for ax in (ax1,ax2,ax3,ax4,ax5,ax6): 
@@ -207,12 +210,22 @@ ax3.semilogx(r,dlnv_dlnr)               , ax3.semilogx(r2,dlnv_dlnr_2)
 ax3.set_ylim([-2,2])
 
 ax4.semilogx(r,num_term1)               , ax4.semilogx(r2,num_term1_2)
-ax5.semilogx(r,num_term2)               , ax5.semilogx(r2,num_term2_2,'.')
+ax5.semilogx(r,-1*array(num_term2))     , ax5.semilogx(r2,-1*array(num_term2_2),'.')
 ax6.semilogx(r,num_term3)               , ax6.semilogx(r2,num_term3_2)
 
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
+
+
+# GM/r - C
+r,num_term1,num_term2=array(r),array(num_term1),array(num_term2)
+
+fig,ax=plt.subplots(1,1)
+ax.set_title(r'GM/r-C')
+ax.semilogx(r,(GM/r+num_term2)/(GM/r),'k--', label=r'$1-1/\Psi\cdot L/L_E\cdot \kappa/\kappa_0\cdot (4-3\beta)/(4-4\beta)$')
+ax.semilogx(r,(num_term1+num_term2)/(GM/r),'k-',label=r'$1/\zeta^2 (A-B/c^2) - 1/\Psi\cdot L/L_E\cdot \kappa/\kappa_0\cdot (4-3\beta)/(4-4\beta)$')
+ax.legend()
 
 
 plt.show()
