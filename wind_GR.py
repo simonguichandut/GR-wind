@@ -32,6 +32,9 @@ P_inner = g*y_inner
 # Maximum density 
 rhomax = 1e6
 
+# Minimum lambda before transitionning to optically thin
+lambda_min = 2.9e-1
+
 # ----------------------------------------- General Relativity ------------------------------------------------
 
 def gamma(v):
@@ -58,9 +61,22 @@ def FLD_Lam(Lstar,r,v,T):
         L = Lcomoving(Lstar,r,v)
         Flux = L/(4*pi*r**2)
         alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
+
         if alpha>1:
             raise Exception
+            print('causality')
+            alpha=1-1e-9
+
+        # # Set maximum alpha for numerical stability
+        # alphamax = 1 - 1e-7
+        # if alpha>alphamax:
+        #     alpha=alphamax
+
+
         Lam = 1/12 * ( (2-3*alpha) + sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
+        # Lam = (1-alpha)/3
+        # Lam = 1/3*(1-alpha**4)
+
         return Lam
 
 # ----------------------------------------- Paczynski&Proczynski ------------------------------------------------
@@ -70,6 +86,9 @@ def Y(r, v):  # eq 2a
 
 def Lcomoving(Lstar,r,v):
     return Lstar/(1+v**2/c**2)/Y(r, v)**2
+
+def taustar(r,rho,T):
+    return rho*eos.kappa(rho,T)*r
 
 def Tstar(Lstar, T, r, rho, v):  # eq 2b
     return Lstar/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/(4*r) * 3*rho/(arad*T**4) * (1+(v/c)**2)**(-1) * Y(r, v)**(-3)
@@ -83,9 +102,22 @@ def B(T):
 def C(Lstar, T, r, rho, v):  # eq 5c
 
     if FLD:
-        return (Tstar(Lstar, T, r, rho, v) * (4-3*eos.Beta(rho, T))/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho)) / (3 * FLD_Lam(Lstar,r,v,T))
+        Lam = FLD_Lam(Lstar,r,v,T)
+
+        # if Lam > lambda_min:
+        #     return Tstar(Lstar, T, r, rho, v) * (4 - eos.Beta(rho, T) * (4 - 1/(3*Lam)) )/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho) 
+
+        # else:  # Safely optically thin. To avoid numerical problems, just write optically thin expression
+        #     tau = taustar(r,rho,T)
+        #     return Tstar(Lstar, T, r, rho, v) * ( 1 + Y(r,v)*eos.Beta(rho,T) / (6*tau*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
+
+        # return Tstar(Lstar, T, r, rho, v) * (4 - eos.Beta(rho, T) * (4 - 1/(3*Lam)) )/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho) 
+        return Tstar(Lstar, T, r, rho, v) * ( 4 + eos.Beta(rho, T)/(3*Lam*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
+
+
     else:
-        return Tstar(Lstar, T, r, rho, v) * (4-3*eos.Beta(rho, T))/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho)
+        return Tstar(Lstar, T, r, rho, v) * (4-3*eos.Beta(rho, T))/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho)     
+
 
 # ------------------------------------- Degenerate electron corrections ---------------------------------------
 # We use these corrections when integrating to high densities (below sonic point, going towards the surface)
@@ -102,10 +134,7 @@ def C_e(Lstar, T, r, rho, v):
     _,_,[alpha1,_,_] = eos.electrons(rho,T)
     bi,be = eos.Beta_I(rho, T), eos.Beta_e(rho, T)
 
-    if FLD:
-        return (Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)) / (3 * FLD_Lam(Lstar,r,v,T))   # FLD lambda only appears in C in the gradient equations
-    else:
-        return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
+    return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
 
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
@@ -135,7 +164,7 @@ def numerator(r, T, v):  # numerator of eq (4a)
     return gamma(v)**(-2) * (   GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
 
 def rSonic(Ts):
-    
+
     rkeep1, rkeep2 = 0.0, 0.0
     npoints = 50
     vs = sqrt(eos.cs2(Ts)/A(Ts))
@@ -155,6 +184,7 @@ def rSonic(Ts):
         
         npoints += 10
     # print('sonic: rkeep1 = %.3e \t rkeep2 = %.3e'%(rkeep1,rkeep2))
+    global rs
     rs = brentq(numerator, rkeep1, rkeep2, args=(Ts, vs), maxiter=100000)
     return rs
 
@@ -182,7 +212,7 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
         E = eos.internal_energy(rho, T)
         P = eos.pressure(rho, T)
         cs = sqrt(eos.cs2(T))
-        tau = rho*eos.kappa(rho,T)*r
+        tau = taustar(r,rho,T)
         lam = FLD_Lam(Lstar,r,u,T)
         return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
 
@@ -217,7 +247,7 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate e
         L = Lcomoving(Lstar,r,u)
         LEdd_loc = Lcrit(r,rho,T)
         cs = sqrt(eos.cs2(T))
-        tau = rho*eos.kappa(rho,T)*r
+        tau = taustar(r,rho,T)
         lam = FLD_Lam(Lstar,r,u,T)
         return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
 
@@ -249,7 +279,21 @@ def dr(r, y, subsonic):
     # OPTION 3
     if FLD:
         Lam = FLD_Lam(Lstar,r,u,T)
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u)/(3*Lam) - 1/Swz(r) * GM/c**2/r
+
+        # if Lam > lambda_min:
+        #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
+        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
+
+        # else: # Safely optically thin. To avoid numerical problems, just write optically thin expression
+        #     dlnT_dlnr = -Lcomoving(Lstar,r,u)/(8*pi*r**2*arad*c*T**4)
+        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e \t THIN'%(log10(r),dlnT_dlnr,Lam))
+
+        
+        # Or just use Fld equation the whole time
+        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
+        print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
+        
+
     else:
         dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
 
@@ -314,22 +358,28 @@ def outerIntegration(returnResult=False):
 
     if FLD:    # for FLD : stop integrating when mach=1 (phi=2).  Then go a bit further in subsonic region
         
+        rmax=1e9
         result1 = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
-                events=hit_mach1, atol=1e-6, rtol=1e-10, dense_output=True)
+                events=hit_mach1, atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
 
         if verbose: print('First FLD integration message:', result1.message)
 
-        rs2 = result1.t[-1] # second sonic point
-        inic = result1.sol(rs2)
-        assert(inic[1]==2)
+        if result1.status == 1 and len(result1.t_events[0]==1):
 
-        result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
-                atol=1e-6, rtol=1e-10, dense_output=True)
+            rs2 = result1.t[-1] # second sonic point
+            inic = result1.sol(rs2)
+            assert(inic[1]==2)
 
-        if verbose: print('Second FLD integration message:',result2.message)
+            result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
+                    atol=1e-6, rtol=1e-10, dense_output=True)
 
-        if returnResult:
-            return result1, result2
+            if verbose: print('Second FLD integration message:',result2.message)
+
+            if returnResult:
+                return [result1, result2]
+        
+        else:
+            return [result1]
 
 
     else:    # Not FLD : stop integrating when tau*=3
@@ -338,7 +388,7 @@ def outerIntegration(returnResult=False):
             T,phi = y
             u = uphi(phi, T, subsonic=False)
             rho = Mdot/(4*pi*r**2*u*Y(r, u))
-            return rho*eos.kappa(rho,T)*r - tau_out
+            return taustar(r,rho,T) - tau_out
         hit_tau_out.terminal = True
 
 
@@ -505,13 +555,16 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
 Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
 
+def setup_globals(params,logMdot,Verbose):
+    global Mdot, Edot, Ts, verbose
+    Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], Verbose
+
 def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and log10(Ts).
         The modes are rootsolve : not output, just obtaining the boundary errors, 
         and wind : obtain the full solutions.   '''
 
-    global Mdot, Edot, rs, Ts, verbose
-    Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], Verbose
+    setup_globals(params,logMdot,Verbose)
 
     if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edot/Ledd = %.5f'%(logMdot,log10(Ts),Edot/LEdd))
 
@@ -554,19 +607,25 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
         if FLD:  # FLD only returns the results from outer integration. This is meant to be temporary
 
-            res1,res2 = outerIntegration(returnResult=True)
+            res = outerIntegration(returnResult=True)
             
+            res1 = res[0]
             r = res1.t
             T,phi = res1.sol(r)
             u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True)
             wind1 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
 
-            r = res2.t
-            T,phi = res2.sol(r)
-            u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
-            wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
+            if len(res)>1:
+                res2 = res[1]
+                r = res2.t
+                T,phi = res2.sol(r)
+                u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
+                wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
 
-            return wind1,wind2
+                return [wind1,wind2]
+
+            else:
+                return [wind1]
 
 
         else:   
@@ -623,149 +682,13 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
 # x,z = IO.load_roots()
 
-# # # Just one solution
-# # err1,err2=MakeWind(z[20],x[20], Verbose=True)
-# # err1,err2=MakeWind([1.02,7.1],18.9)
-# # print(err1,err2)
-
-# All solutions
+## All solutions
 # verbose=0
 # for logmdot,root in zip(x,z):
 #    err1,err2=MakeWind(root,logmdot,Verbose=verbose)
 #    print('%.2f \t\t %.3e \t-\t %.3e\n'%(logmdot,err1,err2))
 
-
-
-
-
-# Debugging NaNs when doing inner integration
-
-# logMdot, params = 18, [1.015,6.95]              # works
-# logMdot, params = 18, [1.05,6.95]              # doesn't work
-
-
-# logMdot,params = 17.2, [1.015,7.1]               # works
-# logMdot,params = 17.2, [1.02,7.1]               # works
-# logMdot,params = 17.2, [1.024,7.1]               # doesnt work
-# logMdot,params = 17.2, [1.025,7.1]               # doesnt work
-logMdot,params = 17.2, [1.03,7.1]             # doesnt work
-
-
-global Mdot, Edot, rs, Ts, verbose
-Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], 1
-
-rs = rSonic(Ts)
-print('For log10Ts = %.2f, located sonic point at log10r = %.2f' %
-        (log10(Ts), log10(rs)))
-
-
-# Quantities at sonic point
-vs = sqrt(eos.cs2(Ts)/A(Ts))
-rhos = Mdot/(4*pi*rs**2*Y(rs, vs)*vs)     # eq 1a
-Lstars = Edot-Mdot*eos.H(rhos, Ts)*Y(rs, vs) + Mdot*c**2     # eq 1c, actually modified for the Mdot*c**2 (it's fine if we stay consistent)
-Ls = Lcomoving(Lstars,rs,vs)
-Thetas = Tstar(Lstars,Ts,rs,rhos,vs)
-
-print('VALUES AT rs')
-print('v: %.3e'%vs)
-print('rho: %.3e'%rhos)
-print('Lstar: %.3e'%Lstars)
-print('L: %.3e'%Ls)
-print('Thetas: %.3e'%Ls)
-
-
-print('derivatives \n',dr_wrapper_subsonic(rs,[Ts,2]),'\n')
-
-result_outer = outerIntegration(returnResult=True)
-r_outer = linspace(rs,result_outer.t[-1],2000)
-T_outer, phi_outer = result_outer.sol(r_outer)
-
-import matplotlib.pyplot as plt
-fig,(ax1,ax2) = plt.subplots(1,2,figsize=(15,7))
-fig.suptitle(r'$\dot{M}$=%.2f . $\dot{E}$=%.3f $L_e$ . log$T_s$=%.3f'%(logMdot,params[0],params[1]))
-ax1.set_ylabel('T',fontsize=14)
-
-ax1.plot(r_outer,T_outer,'b-')
-ax2.plot(r_outer,phi_outer,'b-')
-ax1.plot(result_outer.t,result_outer.y[0],'b.')
-ax2.plot(result_outer.t,result_outer.y[1],'b.')
-ax2.axhline(2,color='k')
-ax2.plot([rs],[2],'ko',mfc=None)
-ax1.set_xlim([0.95*rs,1.05*rs])
-ax2.set_xlim([0.95*rs,1.05*rs])
-ax2.set_ylim([1.97,2.05])
-
-
-
-
-# Inner 1
-r95 = 0.95*rs
-r_inner1 = linspace(rs, r95, 1000)
-result_inner1 = innerIntegration_r()
-T_inner1,phi_inner1 = result_inner1.sol(r_inner1)
-T95, phi95 = result_inner1.sol(r95)
-_, rho95, _, _ = calculateVars_phi(r95, T95, phi=phi95, subsonic=True)
-
-print('rho95 = %.3e\n\n'%rho95)
-
-r,T,phi = result_inner1.t,result_inner1.y[0],result_inner1.y[1]
-ax1.plot(r_inner1,T_inner1,'r-')
-ax2.plot(r_inner1,phi_inner1,'r-')
-ax1.plot(result_inner1.t,result_inner1.y[0],'r.')
-ax2.plot(result_inner1.t,result_inner1.y[1],'r.')
-ax2.set_ylabel(r'$\phi$',fontsize=14)
-# ax3.loglog(r,u), ax3.set_ylabel('u',fontsize=14)
-
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-import sys
-if phi95<2:
-    plt.show()
-    sys.exit("phi goes below 2 in inner integration 1!!")
-
-
-
-
-
-
-# result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-
-inic = [T95, 0.95*rs]
-
-def hit_Pinner(rho,y):              # Inner boundary condition
-    T = y[0]
-    P = eos.pressure_e(rho,T) if EOS_type == 'IGDE' else eos.pressure(rho,T)
-    return P-P_inner
-hit_Pinner.terminal = True
-
-def hit_zerospeed(rho,y):           # Don't want u to change sign
-    r = y[1]
-    u = Mdot/sqrt((4*pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
-    return u
-hit_zerospeed.terminal = True      
-
-def hit_zeroT(rho,y):
-    return y[0]
-
-# Issue wiht solve_ivp in scipy 1.3.0 (fixed in yet to be released 1.4.0) https://github.com/scipy/scipy/pull/10802
-# Will have a typeError when reaching NaNs, and won't return the result properly.
-try:
-    result = solve_ivp(drho, (rho95,rho95*10), inic, method='Radau',
-                events = (hit_Pinner,hit_zerospeed,hit_zeroT), atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(rho) and r(rho)
-except:
-    if verbose: print('Surface pressure never reached (NaNs before reaching p_inner)')
-    sys.exit("")
-
-# print(result.y)
-
-rho,T,r = result.t,result.y[0],result.y[1]
-u = Mdot/sqrt((4*pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
-
-import matplotlib.pyplot as plt
-fig,(ax1,ax2,ax3) = plt.subplots(1,3,figsize=(17,7))
-ax1.loglog(rho,T), ax1.set_ylabel('T',fontsize=14)
-ax2.loglog(rho,r), ax2.set_ylabel('r',fontsize=14)
-ax3.loglog(rho,u), ax3.set_ylabel('u',fontsize=14)
-for ax in (ax1,ax2,ax3): ax.set_xlabel(r'$\rho$',fontsize=14)
-plt.tight_layout()
-plt.show()
+# # # Just one solution
+# # err1,err2=MakeWind(z[20],x[20], Verbose=True)
+# # err1,err2=MakeWind([1.02,7.1],18.9)
+# # print(err1,err2)
