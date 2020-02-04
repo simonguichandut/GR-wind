@@ -93,6 +93,7 @@ def dr2(inic, r):
 
     T, phi = inic[:2]
     u, rho, phi, Lstar = calculateVars_phi(r, T, phi=phi, subsonic=False)
+    L = Lcomoving(Lstar,r,u)
 
     # dT
     dlnT_dlnr_term1 = -Tstar(Lstar, T, r, rho, u) / (3*FLD_Lam(Lstar,r,u,T))
@@ -132,14 +133,15 @@ def dr2(inic, r):
 
     Cthick = Tstar(Lstar, T, r, rho, u) * (4 - 3*eos.Beta(rho, T))/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho) 
     taus = taustar(r,rho,T)
-    Cthin =  Tstar(Lstar, T, r, rho, u) * ( 1 + Y(r,u)*eos.Beta(rho,T) / (6*taus*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
+    Cthin =  1/Y(r,u) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * ( 1 + Y(r,u)*eos.Beta(rho,T) / (6*taus*(1-eos.Beta(rho,T))) ) 
 
     dlnv_dlnr_num_thick = num_term1 + num_term3 - Cthick
     dlnv_dlnr_num_thin = num_term1 + num_term3 - Cthin
     
     # True thin equation has a modified A : 1+2.5 c_s^2/c^2 instead of 1+1.5 c_s^2/c^2
-    dlnv_dlnr_num_thin_v2 = GM/r/Swz(r) * (A(T)) + num_term3 - Cthin
-    dlnv_dlnr_denom_thin_v2 = B(T)-u**2*(A(T)+B(T))
+    Athin = 1 + 2.5*eos.cs2(T)/c**2
+    dlnv_dlnr_num_thin_v2 = GM/r/Swz(r) * (Athin-B(T)/c**2) -2*B(T) - Cthin
+    dlnv_dlnr_denom_thin_v2 = B(T)-u**2*Athin
 
     if (r-rs)<1e6:
         dlnv_dlnr_thick = 0

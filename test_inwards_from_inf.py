@@ -117,44 +117,44 @@ def calculateVars_v(r, T, v, return_all=False):
     
 #%% Thin inwards integration
 
-def dr_thin(r, y):
-
-    T, v = y[:2]
-    rho, L, Lstar = calculateVars_v(r, T, v=v)
-
-    dT_dr = -L/(8*pi*r**3*arad*c*T**3)
-
-    taus = taustar(r,rho,T)
-    Cthin =  1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * ( 1 + Y(r,v)*eos.Beta(rho,T) / (6*taus*(1-eos.Beta(rho,T))) ) 
-    Athin = 1 + 2.5*eos.cs2(T)/c**2
-    dlnv_dlnr = (GM/r/Swz(r) * (Athin - B(T)/c**2) - 2*B(T) - Cthin) / (B(T) - v**2*Athin)
-    dv_dr = v/r * dlnv_dlnr
-    
-    return [dT_dr, dv_dr]
-
-def inner_integration_thin():
-    
-    def causality(r,y):
-        T, v = y[:2]
-        rho, L, _ = calculateVars_v(r, T, v=v)
-        flux = L/(4*pi*r**2)
-        Er = arad*T**4
-        return flux-c*Er
-#    causality.terminal = True
-   
-#    rspan = (r0,0.001*r0)
-    rspan = (r0,2*w1.rs)
-    result = solve_ivp(dr_thin, rspan, (T0,v0), method='Radau', dense_output=True, events=(causality), rtol=1e-6)    
-    return result
-
-
-    
-print('thin integration')
-result = inner_integration_thin()
-print(result.message,'\n')
-#r,T,v = result.t[1:],result.y[0][1:],result.y[1][1:] # exclude first point which has alpha=1 and breaks lambda
-r,(T,v)=result.t,result.y
-rho, L, Lstar = calculateVars_v(r,T,v)
+#def dr_thin(r, y):
+#
+#    T, v = y[:2]
+#    rho, L, Lstar = calculateVars_v(r, T, v=v)
+#
+#    dT_dr = -L/(8*pi*r**3*arad*c*T**3)
+#
+#    taus = taustar(r,rho,T)
+#    Cthin =  1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * ( 1 + Y(r,v)*eos.Beta(rho,T) / (6*taus*(1-eos.Beta(rho,T))) ) 
+#    Athin = 1 + 2.5*eos.cs2(T)/c**2
+#    dlnv_dlnr = (GM/r/Swz(r) * (Athin - B(T)/c**2) - 2*B(T) - Cthin) / (B(T) - v**2*Athin)
+#    dv_dr = v/r * dlnv_dlnr
+#    
+#    return [dT_dr, dv_dr]
+#
+#def inner_integration_thin():
+#    
+#    def causality(r,y):
+#        T, v = y[:2]
+#        rho, L, _ = calculateVars_v(r, T, v=v)
+#        flux = L/(4*pi*r**2)
+#        Er = arad*T**4
+#        return flux-c*Er
+##    causality.terminal = True
+#   
+##    rspan = (r0,0.001*r0)
+#    rspan = (r0,2*w1.rs)
+#    result = solve_ivp(dr_thin, rspan, (T0,v0), method='Radau', dense_output=True, events=(causality), rtol=1e-6)    
+#    return result
+#
+#
+#    
+#print('thin integration')
+#result = inner_integration_thin()
+#print(result.message,'\n')
+##r,T,v = result.t[1:],result.y[0][1:],result.y[1][1:] # exclude first point which has alpha=1 and breaks lambda
+#r,(T,v)=result.t,result.y
+#rho, L, Lstar = calculateVars_v(r,T,v)
 
 #rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_v(r,T,v,return_all=True)
 #

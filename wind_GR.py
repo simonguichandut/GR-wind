@@ -33,7 +33,7 @@ P_inner = g*y_inner
 rhomax = 1e6
 
 # Minimum lambda before transitionning to optically thin
-lambda_min = 2.9e-1
+lambda_min = 1e-3#2.9e-1
 
 # ----------------------------------------- General Relativity ------------------------------------------------
 
@@ -63,19 +63,27 @@ def FLD_Lam(Lstar,r,v,T):
         alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
 
         if alpha>1:
-            raise Exception
-            print('causality')
+#            raise Exception
+#            print('causality warning : F>cE')
             alpha=1-1e-9
 
         # # Set maximum alpha for numerical stability
-        # alphamax = 1 - 1e-7
-        # if alpha>alphamax:
-        #     alpha=alphamax
+#        alphamax = 1 - 1e-7
+#        if alpha>alphamax:
+#            alpha=alphamax
 
 
         Lam = 1/12 * ( (2-3*alpha) + sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
         # Lam = (1-alpha)/3
         # Lam = 1/3*(1-alpha**4)
+
+        # if Lam<lambda_min:
+            # Lam=lambda_min
+
+        ## Quinn formula
+        # YY = Y(r,v)
+        # rho = Mdot/(4*pi*r**2*v*YY)
+        # Lam = 1/(3 + 2*YY/taustar(r,rho,T))
 
         return Lam
 
@@ -112,7 +120,11 @@ def C(Lstar, T, r, rho, v):  # eq 5c
         #     return Tstar(Lstar, T, r, rho, v) * ( 1 + Y(r,v)*eos.Beta(rho,T) / (6*tau*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
 
         # return Tstar(Lstar, T, r, rho, v) * (4 - eos.Beta(rho, T) * (4 - 1/(3*Lam)) )/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho) 
-        return Tstar(Lstar, T, r, rho, v) * ( 4 + eos.Beta(rho, T)/(3*Lam*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
+        
+#        return Tstar(Lstar, T, r, rho, v) * ( 4 + eos.Beta(rho, T)/(3*Lam*(1-eos.Beta(rho,T))) ) * arad*T**4/(3*rho) 
+        
+        L = Lcomoving(Lstar,r,v)
+        return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * (1 + eos.Beta(rho,T)/(12*Lam*(1-eos.Beta(rho,T))))
 
 
     else:
@@ -291,7 +303,7 @@ def dr(r, y, subsonic):
         
         # Or just use Fld equation the whole time
         dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
-        print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
+#        print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
         
 
     else:
@@ -555,9 +567,11 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
 Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
 
-def setup_globals(params,logMdot,Verbose):
+def setup_globals(params,logMdot,Verbose,return_them=False):
     global Mdot, Edot, Ts, verbose
     Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1], Verbose
+    if return_them:
+        return Mdot, Edot, Ts, verbose
 
 def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and log10(Ts).
