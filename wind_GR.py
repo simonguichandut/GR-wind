@@ -373,25 +373,34 @@ def outerIntegration(returnResult=False):
         rmax=1e9
         result1 = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
                 events=hit_mach1, atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
-
-        if verbose: print('First FLD integration message:', result1.message)
-
-        if result1.status == 1 and len(result1.t_events[0]==1):
-
-            rs2 = result1.t[-1] # second sonic point
-            inic = result1.sol(rs2)
-            assert(inic[1]==2)
-
-            result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
-                    atol=1e-6, rtol=1e-10, dense_output=True)
-
-            if verbose: print('Second FLD integration message:',result2.message)
-
-            if returnResult:
-                return [result1, result2]
         
-        else:
-            return [result1]
+        if verbose: 
+            if result1.status == 1:
+                print('FLD outer integration: reached Mach 1')
+            else:
+                print('FLD outer integration : ',result1.message)
+                
+        return result1
+                
+
+#        if verbose: print('First FLD integration message:', result1.message)
+#
+#        if result1.status == 1 and len(result1.t_events[0]==1):
+#
+#            rs2 = result1.t[-1] # second sonic point
+#            inic = result1.sol(rs2)
+#            assert(inic[1]==2)
+#
+#            result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
+#                    atol=1e-6, rtol=1e-10, dense_output=True)
+#
+#            if verbose: print('Second FLD integration message:',result2.message)
+#
+#            if returnResult:
+#                return [result1, result2]
+#        
+#        else:
+#            return [result1]
 
 
     else:    # Not FLD : stop integrating when tau*=3
@@ -623,23 +632,25 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
             res = outerIntegration(returnResult=True)
             
-            res1 = res[0]
-            r = res1.t
-            T,phi = res1.sol(r)
+            r = res.t
+            T,phi = res.sol(r)
             u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True)
             wind1 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
+            
+            return wind1
 
-            if len(res)>1:
-                res2 = res[1]
-                r = res2.t
-                T,phi = res2.sol(r)
-                u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
-                wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
 
-                return [wind1,wind2]
-
-            else:
-                return [wind1]
+#            if len(res)>1:
+#                res2 = res[1]
+#                r = res2.t
+#                T,phi = res2.sol(r)
+#                u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
+#                wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
+#
+#                return [wind1,wind2]
+#
+#            else:
+#                return [wind1]
 
 
         else:   
