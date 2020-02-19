@@ -372,13 +372,15 @@ logMdot = 18.5
 
 #params = [1.025,7.1595,8.41374983]
 
-params = [1.025,7.175,8.41374983]    # wow!!
+params = [1.025,7.175,8.41374983]    # wow!! that is the one
 
-#params = [1.025,7.175,8.413]   
+#params = [1.025,7.175,8.413]  
+
+ 
+#params = [1.025,7.175,8.38]  
 
 
-
-global Mdot,Edot,Ts,verbose,rs,vinf
+global Mdot,Edot,Ts,verbose,rs
 Mdot, Edot, Ts, verbose = W.setup_globals(params[:2],logMdot,Verbose=1,return_them=True)
 vinf = 10**params[2]
 
@@ -432,7 +434,6 @@ def causality(r,y):
 
 def divergence(r,y):
     return y[1]-vinf
-#    divergence.direction = -1  # velocity gradient becomes negative (v goes up as we go in, we're diverging for sure)
 divergence.terminal = True
 
 
@@ -472,6 +473,113 @@ plt.tight_layout()
 plt.show()
 
 
+
+#%% 
+
+def MakeWind_frominf(params):
+
+    global Mdot,Edot,Ts,verbose,rs
+    Mdot, Edot, Ts, verbose = W.setup_globals(params[:2],logMdot,Verbose=1,return_them=True)
+    vinf = 10**params[2]
+    
+    gammainf = gamma(vinf)
+    Linf = Edot + Mdot*c**2*(1-gammainf)
+    r0 = 1e12
+    
+    def calc_initial_vars(x):
+        v0,Lstar0 = x
+        L0 = Lcomoving(Lstar0,r0,v0)
+        rho0 = Mdot/(4*pi*r0**2*v0*Y(r0,v0))
+        T0 = (L0/(4*pi*r0**2*arad*c))**(0.25)
+        return v0,Lstar0,L0,rho0,T0
+    
+    def error(x):
+        
+        v0,Lstar0,L0,rho0,T0 = calc_initial_vars(x)
+        
+        E1 = Y(r0,v0) - gammainf + eos.kappa(rho0,T0)*L0/(4*pi*r0*c**3*Y(r0,v0))   # Integrated momentum equation ignoring Pg'
+        E2 = (Edot + Mdot*c**2 - Lstar0 - Mdot*eos.H(rho0,T0)*Y(r0,v0))/LEdd
+        return [E1,E2]
+    
+    x = fsolve(error,x0=[vinf,Linf])
+    v0,Lstar0,L0,rho0,T0 = calc_initial_vars(x)
+            
+    
+    def divergence(r,y):
+        return y[1]-vinf
+    divergence.terminal = True
+    
+    
+    def hit_mach1(r,y): 
+        cs = sqrt(eos.cs2(y[0]))
+        return y[1]-cs
+    hit_mach1.terminal = True # stop integrating at this point
+    
+    rspan = (r0,rs)
+    result = solve_ivp(dr_fld, rspan, (T0,v0), method='RK45', dense_output=True, events=(divergence,hit_mach1), rtol=1e-6)    
+    r,(T,u)=result.t,result.y
+    print(result.message,result.t_events)
+    
+    return r,T,u
+           
+
+r2,T2,u2 = MakeWind_frominf([1.025,7.175,8.38] )
+
+fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,7))
+ax1.loglog(r1,T1,label='from sonic point')
+ax2.loglog(r1,u1)
+ax1.loglog(r2,T2,label='from infinity')
+ax2.loglog(r2,u2) 
+
+
+
+#%% Now iterate on the values of vinf 
+
+logvinf = 8.41
+update = 0.0005
+
+fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,7))
+ax1.loglog(r1,T1,'k-')
+ax2.loglog(r1,u1,'k-')
+ax1.set_xlabel('r (cm)')
+ax2.set_xlabel('r (cm)')
+ax1.set_ylabel('T (K)')
+ax2.set_ylabel('u (cm/s)')
+plt.close()
+
+i=1
+while update>1e-4:
+    
+    r2,T2,u2 = MakeWind_frominf([1.025,7.175,logvinf])
+    
+    fig.suptitle((r'log $v_\infty$ = %.4f'%np.round(logvinf,4)))
+    l1=ax1.loglog(r2,T2,'r-')
+    l2=ax2.loglog(r2,u2,'r-') 
+    
+    plt.pause(0.01)
+    fig.savefig('./FLD_rootsolve/vinf_demo2/'+str(i)+'.png')
+    l1.pop(0).remove()
+    l2.pop(0).remove()
+    
+    logvinf+=update
+    i+=1
+    
+    
+    
+
+#%%
+#    
+#logvinfs = linspace(8,9,10)
+#v0=[]
+#for v in logvinfs:
+#    gammainf = gamma(10**v)
+#    Linf = Edot + Mdot*c**2*(1-gammainf)
+#    v0.append(fsolve(error,x0=[10**v,Linf])[0])
+#
+#plt.plot(logvinfs,log10(v0))
+#    
+    
+    
 
 
 
