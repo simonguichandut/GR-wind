@@ -1,7 +1,9 @@
-''' Main code to calculate winds '''
+''' 
+Main code to calculate winds 
+Version with flux-limited diffusion : transitions to optically thin
+'''
 
 import os
-import sys
 import numpy as np
 from numpy import linspace, logspace, sqrt, log10, array, pi, gradient
 from scipy.optimize import brentq
@@ -19,7 +21,6 @@ sigmarad = 0.25*arad*c
 
 # Parameters
 M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
-if FLD: sys.exit('This script is for pure optically thick, not FLD')
 
 # Generate EOS class and methods
 eos = physics.EOS(comp)
@@ -45,6 +46,37 @@ def Swz(r):  # Schwartzchild metric term
 def Lcrit(r,rho,T): # local critical luminosity
     return LEdd * (eos.kappa0/eos.kappa(rho,T)) *Swz(r)**(-1/2)
 
+# --------------------------------------- Flux-limited diffusion ------------------------------------------------
+# Modified version of Pomraning (1983) FLD prescription.  See Guichandut & Cumming (2020)
+
+def FLD_Lam(Lstar,r,v,T):
+
+    if isinstance(Lstar, (list,tuple,np.ndarray)): # for function to be able to take and return array
+        Lam = []
+        for lstari,ri,vi,Ti in zip(Lstar,r,v,T):
+            Lam.append(FLD_Lam(lstari,ri,vi,Ti))
+        return array(Lam)
+
+    else:
+        L = Lcomoving(Lstar,r,v)
+        Flux = L/(4*pi*r**2)
+        alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
+
+        if alpha>1:
+#            raise Exception
+#            print('causality warning : F>cE')
+            alpha=1-1e-9
+
+        Lam = 1/12 * ( (2-3*alpha) + sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
+
+
+        ## Quinn formula
+        # YY = Y(r,v)
+        # rho = Mdot/(4*pi*r**2*v*YY)
+        # Lam = 1/(3 + 2*YY/taustar(r,rho,T))
+
+        return Lam
+
 # ----------------------------------------- Paczynski&Proczynski ------------------------------------------------
 
 def Y(r, v):  # eq 2a
@@ -65,8 +97,12 @@ def A(T):  # eq 5a
 def B(T):
     return eos.cs2(T)
 
-def C(Lstar, T, r, rho, v):  # eq 5c
-    return Tstar(Lstar, T, r, rho, v) * (4-3*eos.Beta(rho, T))/(1-eos.Beta(rho, T)) * arad*T**4/(3*rho)     
+def C(Lstar, T, r, rho, v):  # eq 5c, but modified because of FLD
+
+    Lam = FLD_Lam(Lstar,r,v,T)
+    L = Lcomoving(Lstar,r,v)
+
+    return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * (1 + eos.Beta(rho,T)/(12*Lam*(1-eos.Beta(rho,T))))
 
 
 # ------------------------------------- Degenerate electron corrections ---------------------------------------
@@ -163,7 +199,8 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
         P = eos.pressure(rho, T)
         cs = sqrt(eos.cs2(T))
         tau = taustar(r,rho,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
+        lam = FLD_Lam(Lstar,r,u,T)
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
 
 def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate electrons if EOS_type is set to 'IGDE'
 
@@ -197,7 +234,8 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate e
         LEdd_loc = Lcrit(r,rho,T)
         cs = sqrt(eos.cs2(T))
         tau = taustar(r,rho,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
+        lam = FLD_Lam(Lstar,r,u,T)
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
 
         
 
@@ -225,7 +263,25 @@ def dr(r, y, subsonic):
 
 
     # OPTION 3
-    dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
+    if FLD:
+        Lam = FLD_Lam(Lstar,r,u,T)
+
+        # if Lam > lambda_min:
+        #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
+        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
+
+        # else: # Safely optically thin. To avoid numerical problems, just write optically thin expression
+        #     dlnT_dlnr = -Lcomoving(Lstar,r,u)/(8*pi*r**2*arad*c*T**4)
+        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e \t THIN'%(log10(r),dlnT_dlnr,Lam))
+
+        
+        # Or just use Fld equation the whole time
+        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
+#        print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
+        
+
+    else:
+        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
 
 
     # Note : Options 1&2 both run into numerical problems because dlnv_dlnr diverges not just at the
@@ -277,6 +333,7 @@ def outerIntegration(returnResult=False):
     inic = [Ts, 2.0]
     rmax = 50*rs
 
+
     def hit_mach1(r,y): 
         if r>5*rs:
             return y[1]-2  # mach 1 
@@ -284,77 +341,128 @@ def outerIntegration(returnResult=False):
             return 1
     hit_mach1.terminal = True # stop integrating at this point
    
-    def hit_tau_out(r,y):
-        T,phi = y
-        u = uphi(phi, T, subsonic=False)
-        rho = Mdot/(4*pi*r**2*u*Y(r, u))
-        return taustar(r,rho,T) - tau_out
-    hit_tau_out.terminal = True
 
-
-    # Sonic point might be optically thin. Before we integrate, check if we start already at tau<3
-    taus = hit_tau_out(rs,inic) + tau_out
-    if taus < tau_out:
-        print('Sonic point is optically thin! Tau = %.3f'%taus)
-        return +400
-
-    # Now go
-    result = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='RK45',
-                events=(hit_tau_out,hit_mach1), atol=1e-6, rtol=1e-6, dense_output=True)
-
-    if verbose: print(result.message)
-
-    if result.status == 1:              # A termination event occured
-    
-        if len(result.t_events[0]) == 1:    # The correct termination event occured (tau_out)
-
-            rphot,Tphot,phiphot = result.t[-1],result.y[0][-1],result.y[1][-1]
-            u, _, _, Lstar = calculateVars_phi(rphot, Tphot, phi=phiphot, subsonic=False)
-            L1 = Lcomoving(Lstar,rphot,u)
-            L2 = 4.0*pi*rphot**2*sigmarad*Tphot**4
-
-            if verbose: print('Found photosphere at log10 r = %.2f' % log10(rphot))
-
-            if returnResult:
-                return result
+    if FLD:    # for FLD : stop integrating when mach=1 (phi=2).  Then go a bit further in subsonic region
+        
+        
+        def hit_1e8(r,y):
+            return uphi(y[1],y[0],subsonic=False)-1e8
+        hit_1e8.direction = -1
+        hit_1e8.terminal = True
+        
+        
+        def dv_dr_zero(r,y):
+            if r>5*rs:
+                return numerator(r,y[0],uphi(y[1],y[0],subsonic=False))
             else:
-                return (L2 - L1) / (L1 + L2)      # Boundary error #1
+                return -1
+        dv_dr_zero.direction = +1
+        dv_dr_zero.terminal = True
             
-            # The rest won't run if we return here
-            
-        else: 
-            flag_mach1 = 1
-            if verbose: print('Hit mach 1 before reaching a photosphere at log10 r = %.2f' % log10(result.t[-1]))
+        
+        rmax=1e12
+        result1 = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
+                events=(dv_dr_zero,hit_mach1,hit_1e8), atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
+        
+        if verbose: 
+                print('FLD outer integration : ',result1.message)
+                
+        return result1
+                
+
+#        if verbose: print('First FLD integration message:', result1.message)
+#
+#        if result1.status == 1 and len(result1.t_events[0]==1):
+#
+#            rs2 = result1.t[-1] # second sonic point
+#            inic = result1.sol(rs2)
+#            assert(inic[1]==2)
+#
+#            result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
+#                    atol=1e-6, rtol=1e-10, dense_output=True)
+#
+#            if verbose: print('Second FLD integration message:',result2.message)
+#
+#            if returnResult:
+#                return [result1, result2]
+#        
+#        else:
+#            return [result1]
 
 
-    #### Further analysis if we did not manage to reach a photosphere
-    flag_tauincrease = 0
+    else:    # Not FLD : stop integrating when tau*=3
 
-    tau = []
-    for ti,yi in zip(result.t,result.y.transpose()):
-        tau.append( hit_tau_out(ti,yi) + tau_out)
-
-    if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", min(tau))
-
-    # check if tau started to increase anywhere
-    grad_tau = gradient(tau)
-
-    if True in (grad_tau>0):
-        flag_tauincrease = 1
-        i = np.argwhere(grad_tau>0)[0][0]
-        if verbose: print("Tau started to increase at logr = %.2f" % log10(result.t[i]))
+        def hit_tau_out(r,y):
+            T,phi = y
+            u = uphi(phi, T, subsonic=False)
+            rho = Mdot/(4*pi*r**2*u*Y(r, u))
+            return taustar(r,rho,T) - tau_out
+        hit_tau_out.terminal = True
 
 
-    if returnResult:
-        return result
-    else:
-        if flag_tauincrease:
-            return +200
+        # Sonic point might be optically thin. Before we integrate, check if we start already at tau<3
+        taus = hit_tau_out(rs,inic) + tau_out
+        if taus < tau_out:
+            print('Sonic point is optically thin! Tau = %.3f'%taus)
+            return +400
+
+        # Now go
+        result = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='RK45',
+                    events=(hit_tau_out,hit_mach1), atol=1e-6, rtol=1e-6, dense_output=True)
+
+        if verbose: print(result.message)
+
+        if result.status == 1:              # A termination event occured
+        
+            if len(result.t_events[0]) == 1:    # The correct termination event occured (tau_out)
+
+                rphot,Tphot,phiphot = result.t[-1],result.y[0][-1],result.y[1][-1]
+                u, _, _, Lstar = calculateVars_phi(rphot, Tphot, phi=phiphot, subsonic=False)
+                L1 = Lcomoving(Lstar,rphot,u)
+                L2 = 4.0*pi*rphot**2*sigmarad*Tphot**4
+
+                if verbose: print('Found photosphere at log10 r = %.2f' % log10(rphot))
+
+                if returnResult:
+                    return result
+                else:
+                    return (L2 - L1) / (L1 + L2)      # Boundary error #1
+                
+                # The rest won't run if we return here
+                
+            else: 
+                flag_mach1 = 1
+                if verbose: print('Hit mach 1 before reaching a photosphere at log10 r = %.2f' % log10(result.t[-1]))
+
+  
+        #### Further analysis if we did not manage to reach a photosphere
+        flag_tauincrease = 0
+
+        tau = []
+        for ti,yi in zip(result.t,result.y.transpose()):
+            tau.append( hit_tau_out(ti,yi) + tau_out)
+
+        if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", min(tau))
+
+        # check if tau started to increase anywhere
+        grad_tau = gradient(tau)
+
+        if True in (grad_tau>0):
+            flag_tauincrease = 1
+            i = np.argwhere(grad_tau>0)[0][0]
+            if verbose: print("Tau started to increase at logr = %.2f" % log10(result.t[i]))
+
+
+        if returnResult:
+            return result
         else:
-            if flag_mach1:
-                return +100
+            if flag_tauincrease:
+                return +200
             else:
-                return +300   # a weird case unlikely to happen : reaching r_outer while never having a tau increase nor reaching phi=2
+                if flag_mach1:
+                    return +100
+                else:
+                    return +300   # a weird case that probably won't happen : reaching r_outer while never having a tau increase nor reaching phi=2
 
 
 def innerIntegration_r():
@@ -453,7 +561,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # ------------------------------------------------- Wind ---------------------------------------------------
 
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
-Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','rs','Edot','Ts'])   
+Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
 
 def setup_globals(params,logMdot,Verbose,return_them=False):
     global Mdot, Edot, Ts, verbose
@@ -478,6 +586,9 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
               (log10(Ts), log10(rs)))
 
     if mode == 'rootsolve':
+
+        if FLD:
+            raise TypeError("rootsolving not yet setup for FLD")
 
         # First error is given by the outer luminosity
         error1 = outerIntegration()
@@ -504,50 +615,77 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
     elif mode == 'wind':  # Same thing but calculate variables and output all of the arrays
 
-        # Outer integration
-        result_outer = outerIntegration(returnResult=True)
-        # r_outer = linspace(rs,result_outer.t[-1],2000)
-        r_outer = linspace(1.01*rs,result_outer.t[-1],2000)   # ignore data in 1% around rs
-        T_outer, phi_outer = result_outer.sol(r_outer)
+        if FLD:  # FLD only returns the results from outer integration. This is meant to be temporary
 
-        # re-add sonic point values
-        r_outer, T_outer, phi_outer = np.insert(r_outer, 0, rs), np.insert(T_outer, 0, Ts), np.insert(phi_outer, 0, 2.0)
+            res = outerIntegration(returnResult=True)
+            
+            r = res.t
+            T,phi = res.sol(r)
+            u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True)
+            wind1 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
+            
+            return wind1
 
-        _, rho_outer, _, _ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, subsonic=False)
 
-        # First inner integration
-        r95 = 0.95*rs
-        # r_inner1 = linspace(rs, r95, 500)
-        r_inner1 = linspace(0.99*rs, r95, 30)      # ignore data in 1% around rs
-        result_inner1 = innerIntegration_r()
-        T95, phi95 = result_inner1.sol(r95)
-        T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
+#            if len(res)>1:
+#                res2 = res[1]
+#                r = res2.t
+#                T,phi = res2.sol(r)
+#                u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
+#                wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
+#
+#                return [wind1,wind2]
+#
+#            else:
+#                return [wind1]
 
-        _, rho_inner1, _, _ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, subsonic=True)
-        rho95 = rho_inner1[-1]
 
-        # Second inner integration 
-        result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-        rho_inner2 = logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
-        T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
-        
+        else:   
 
-        # Attaching arrays for r,rho,T from surface to photosphere   (ignoring first point in inner2 because duplicate values at r=r95)
-        r_inner = np.append(np.flip(r_inner2[1:], axis=0),
-                            np.flip(r_inner1, axis=0))
-        T_inner = np.append(np.flip(T_inner2[1:], axis=0),
-                            np.flip(T_inner1, axis=0))
-        rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
-                            np.flip(rho_inner1, axis=0))
+            # Outer integration
+            result_outer = outerIntegration(returnResult=True)
+            # r_outer = linspace(rs,result_outer.t[-1],2000)
+            r_outer = linspace(1.01*rs,result_outer.t[-1],2000)   # ignore data in 1% around rs
+            T_outer, phi_outer = result_outer.sol(r_outer)
 
-        R = np.append(r_inner, r_outer)
-        T = np.append(T_inner, T_outer)
-        Rho = np.append(rho_inner, rho_outer)
+            # re-add sonic point values
+            r_outer, T_outer, phi_outer = np.insert(r_outer, 0, rs), np.insert(T_outer, 0, Ts), np.insert(phi_outer, 0, 2.0)
 
-        # Calculate the rest of the vars
-        u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = calculateVars_rho(R, T, rho=Rho, return_all=True)
+            _, rho_outer, _, _ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, subsonic=False)
 
-        return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts)
+            # First inner integration
+            r95 = 0.95*rs
+            # r_inner1 = linspace(rs, r95, 500)
+            r_inner1 = linspace(0.99*rs, r95, 30)      # ignore data in 1% around rs
+            result_inner1 = innerIntegration_r()
+            T95, phi95 = result_inner1.sol(r95)
+            T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
+
+            _, rho_inner1, _, _ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, subsonic=True)
+            rho95 = rho_inner1[-1]
+
+            # Second inner integration 
+            result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
+            rho_inner2 = logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
+            T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
+            
+
+            # Attaching arrays for r,rho,T from surface to photosphere   (ignoring first point in inner2 because duplicate values at r=r95)
+            r_inner = np.append(np.flip(r_inner2[1:], axis=0),
+                                np.flip(r_inner1, axis=0))
+            T_inner = np.append(np.flip(T_inner2[1:], axis=0),
+                                np.flip(T_inner1, axis=0))
+            rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
+                                np.flip(rho_inner1, axis=0))
+
+            R = np.append(r_inner, r_outer)
+            T = np.append(T_inner, T_outer)
+            Rho = np.append(rho_inner, rho_outer)
+
+            # Calculate the rest of the vars
+            u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_rho(R, T, rho=Rho, return_all=True)
+
+            return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam, rs, Edot, Ts)
 
 
 
@@ -556,7 +694,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
 # x,z = IO.load_roots()
 
-# # All solutions
+## All solutions
 # verbose=0
 # for logmdot,root in zip(x,z):
 #    err1,err2=MakeWind(root,logmdot,Verbose=verbose)
