@@ -120,7 +120,7 @@ def C_e(Lstar, T, r, rho, v):
     _,_,[alpha1,_,_] = eos.electrons(rho,T)
     bi,be = eos.Beta_I(rho, T), eos.Beta_e(rho, T)
 
-    return Tstar(Lstar, T, r, rho, v) * ((4-3*bi-(4-alpha1)*be)/(1-bi-be)) * arad*T**4/(3*rho)
+    return 1/Y(r,v) * Lcomoving(Lstar,r,v)/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * (1 + (eos.Beta_I(rho,T) + alpha1*eos.Beta_e(rho,T))/(12*Lam*(1-eos.Beta_I(rho,T)-eos.Beta_e(rho,T))))
 
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
