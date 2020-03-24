@@ -169,7 +169,7 @@ def clean_rootfile(warning=1):
 
         v = []
         for x in new_logMDOTS:
-            duplicates= argwhere(logMDOTS==x)
+            duplicates = argwhere(logMDOTS==x)
             v.append(duplicates[-1][0]) # keeping the last one
 
         new_roots = []
@@ -235,3 +235,35 @@ def load_EdotTsrel(logMDOT):
                 TsvalsB.append(eval(line.split()[2]))
         
         return True,Edotvals,TsvalsA,TsvalsB
+
+
+def clean_EdotTsrelfile(logMDOT,warning=1):
+
+    # Find duplicates, and remove all but the latest root (assuming the last one is the correct one)
+    # Sort from lowest to biggest
+    from numpy import unique,sort,argwhere
+
+    _,Edotvals,TsvalsA,TsvalsB = load_EdotTsrel(logMDOT)
+    new_Edotvals = sort(unique(Edotvals))
+
+    if list(new_Edotvals) != list(Edotvals):
+
+        v = []
+        for x in new_Edotvals:
+            duplicates = argwhere(Edotvals==x)
+            v.append(duplicates[-1][0]) # keeping the last one
+
+        new_TsvalsA, new_TsvalsB = [],[]
+        for i in v:
+            new_TsvalsA.append(TsvalsA[i])
+            new_TsvalsB.append(TsvalsB[i])
+
+        if warning:
+            o = input('EdotTsrel file will be overwritten. Proceed? (0 or 1) ')
+        else:
+            o = 1
+        if o:
+            filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMDOT) + '.txt'
+            os.remove(filepath)
+
+            save_EdotTsrel(logMDOT,new_Edotvals,new_TsvalsA,new_TsvalsB)

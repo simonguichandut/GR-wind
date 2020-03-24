@@ -122,7 +122,10 @@ def C_e(Lstar, T, r, rho, v):
     _,_,[alpha1,_,_] = eos.electrons(rho,T)
     bi,be = eos.Beta_I(rho, T), eos.Beta_e(rho, T)
 
-    return 1/Y(r,v) * Lcomoving(Lstar,r,v)/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * (1 + (eos.Beta_I(rho,T) + alpha1*eos.Beta_e(rho,T))/(12*Lam*(1-eos.Beta_I(rho,T)-eos.Beta_e(rho,T))))
+    Lam = FLD_Lam(Lstar,r,v,T)
+    L = Lcomoving(Lstar,r,v)
+
+    return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * (1 + (eos.Beta_I(rho,T) + alpha1*eos.Beta_e(rho,T))/(12*Lam*(1-eos.Beta_I(rho,T)-eos.Beta_e(rho,T))))
 
 # -------------------------------------------- u(phi) ------------------------------------------------------
 
@@ -287,7 +290,7 @@ def outerIntegration(returnResult=False):
     ''' Integrates out from the sonic point until the photosphere is reached '''
 
     if verbose:
-        print('**** Running outerIntegration ****')
+        print('\n**** Running outerIntegration ****')
 
     inic = [Ts, 2.0]
     rmax = 50*rs
@@ -314,12 +317,13 @@ def outerIntegration(returnResult=False):
     dv_dr_zero.terminal = True
         
     # Go
-    rmax=1e12
+    rmax=1e10
     sol = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
             events=(dv_dr_zero,hit_mach1,hit_1e8), atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
     
     if verbose: 
-            print('FLD outer integration : ',result.message)
+            print('FLD outer integration : ',sol.message)
+            print('rmax = %.3e\n\n'%sol.t[-1])
             
     return sol
 
@@ -328,16 +332,16 @@ def innerIntegration_r():
     ''' Integrates in from the sonic point to 95% of the sonic point, using r as the independent variable '''
     
     if verbose:
-        print('**** Running innerIntegration R ****')
+        print('\n**** Running innerIntegration R ****')
 
     inic = [Ts, 2.0]
 
-    result = solve_ivp(dr_wrapper_subsonic, (rs,0.95*rs), inic, method='RK45',
+    sol = solve_ivp(dr_wrapper_subsonic, (rs,0.95*rs), inic, method='RK45',
                     atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(r) and phi(r)
 
-    if verbose: print(result.message)
+    if verbose: print(sol.message)
 
-    return result
+    return sol
 
 
 def innerIntegration_rho(rho95, T95, returnResult=False):
@@ -345,7 +349,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         We want to match the location of p=p_inner to the NS radius '''
 
     if verbose:
-        print('**** Running innerIntegration RHO ****')
+        print('\n**** Running innerIntegration RHO ****')
 
     inic = [T95, 0.95*rs]
 
@@ -365,30 +369,30 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
     # Will have a typeError when reaching NaNs, and won't return the result properly.
     
     try:
-        result = solve_ivp(drho, (rho95,rhomax), inic, method='Radau',
+        sol = solve_ivp(drho, (rho95,rhomax), inic, method='Radau',
                     events = (hit_Pinner,hit_zerospeed), atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(rho) and r(rho)
     except:
         if verbose: print('Surface pressure never reached (NaNs before reaching p_inner)')
         return +200
 
 
-    if verbose: print(result.message)
+    if verbose: print(sol.message)
 
-    if result.status == 1 :         # A termination event occured
+    if sol.status == 1 :         # A termination event occured
 
-        if len(result.t_events[0]) == 1:  # The correct termination event occured (P_inner)
+        if len(sol.t_events[0]) == 1:  # The correct termination event occured (P_inner)
             
-            rbase = result.y[1][-1]
+            rbase = sol.y[1][-1]
             if verbose: print('Found base at r = %.2f km\n' % (rbase/1e5))
 
             if returnResult:
-                return result
+                return sol
             else:
                 return (rbase/1e5 - RNS)/RNS    # Boundary error #2
 
         else:
             flag_u0 = 1
-            p = hit_Pinner(result.t[-1],result.y[-1]) + P_inner
+            p = hit_Pinner(sol.t[-1],sol.y[-1]) + P_inner
             col = p/g
             if verbose: print('Zero velocity before pressure condition reached.\
                                 Last pressure : %.3e (y = %.3e)\n'%(p,col))
@@ -397,7 +401,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         if verbose: print('Pressure condition nor zero velocity reached. Something else went wrong\n')
 
     if returnResult:
-        return result
+        return sol
     else:
         if flag_u0:
             return +100
@@ -448,19 +452,6 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
             wind1 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
             
             return wind1
-
-
-#            if len(res)>1:
-#                res2 = res[1]
-#                r = res2.t
-#                T,phi = res2.sol(r)
-#                u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True,subsonic=True)
-#                wind2 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
-#
-#                return [wind1,wind2]
-#
-#            else:
-#                return [wind1]
 
 
         else:   
