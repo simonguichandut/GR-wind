@@ -556,7 +556,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
 # x,z = IO.load_roots()
 
-# # All solutions
+# All solutions
 # verbose=0
 # for logmdot,root in zip(x,z):
 #    err1,err2=MakeWind(root,logmdot,Verbose=verbose)

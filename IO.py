@@ -200,4 +200,38 @@ def clean_rootfile(warning=1):
 #     if not os.path.exists('pickle/'):
 #         os.mkdir('pickle/')
 
-    
+
+def save_EdotTsrel(logMDOT, Edotvals, TsvalsA, TsvalsB):
+
+    name = get_name()
+    path = 'roots/FLD/' + name
+
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    filepath = path + '/EdotTsrel_' + str(logMDOT) + '.txt'
+    if not os.path.exists(filepath):
+        f = open(filepath, 'w+')
+        f.write('{:<12s} \t {:<12s} \t {:<12s}\n'.format('Edot/LEdd', 'log10(TsA)', 'log10(TsB)'))
+    else:
+        f = open(filepath, 'a')
+
+    for edot, tsa, tsb in zip(Edotvals, TsvalsA, TsvalsB):
+        f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(edot, tsa, tsb))
+
+def load_EdotTsrel(logMDOT):
+
+    filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMDOT) + '.txt'
+    if not os.path.exists(filepath):
+        return False,
+
+    else:
+        Edotvals, TsvalsA, TsvalsB = [],[],[]
+        with open(filepath,'r') as f:
+            next(f)
+            for line in f:
+                Edotvals.append(eval(line.split()[0]))
+                TsvalsA.append(eval(line.split()[1]))
+                TsvalsB.append(eval(line.split()[2]))
+        
+        return True,Edotvals,TsvalsA,TsvalsB

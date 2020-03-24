@@ -37,3 +37,5 @@ results/He_IG_*
 *.ipynb
 
 results/H_*
+
+*.pyc

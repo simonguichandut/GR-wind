@@ -4,6 +4,7 @@ Version with flux-limited diffusion : transitions to optically thin
 '''
 
 import os
+import sys
 import numpy as np
 from numpy import linspace, logspace, sqrt, log10, array, pi, gradient
 from scipy.optimize import brentq
@@ -21,6 +22,7 @@ sigmarad = 0.25*arad*c
 
 # Parameters
 M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
+if not FLD: sys.exit('This script is for FLD calculations')
 
 # Generate EOS class and methods
 eos = physics.EOS(comp)
@@ -245,51 +247,8 @@ def dr(r, y, subsonic):
     T, phi = y[:2]
     u, rho, phi, Lstar = calculateVars_phi(r, T, phi=phi, subsonic=subsonic)
 
-    ## OPTION 1
-    # if r == rs or phi < 2:
-    #     dlnT_dlnr = -1  # avoid divergence at sonic point
-    # else:               # (eq. 4a&b)
-    #     dlnv_dlnr = numerator(r, T, u) / (B(T) - u**2*A(T))
-    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r \
-    #          - gamma(u)**2*(u/c)**2*dlnv_dlnr
-
-    ## OPTION 2
-    # if r == rs or phi < 2:
-    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
-    # else:               # (eq. 4a&b)
-    #     dlnv_dlnr = numerator(r, T, u) / (B(T) - u**2*A(T))
-    #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r \
-    #          - gamma(u)**2*(u/c)**2*dlnv_dlnr
-
-
-    # OPTION 3
-    if FLD:
-        Lam = FLD_Lam(Lstar,r,u,T)
-
-        # if Lam > lambda_min:
-        #     dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
-        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
-
-        # else: # Safely optically thin. To avoid numerical problems, just write optically thin expression
-        #     dlnT_dlnr = -Lcomoving(Lstar,r,u)/(8*pi*r**2*arad*c*T**4)
-        #     print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e \t THIN'%(log10(r),dlnT_dlnr,Lam))
-
-        
-        # Or just use Fld equation the whole time
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r
-#        print('logr = %.3f  : dlnT_dlnr = %.3f \t lambda=%.3e'%(log10(r),dlnT_dlnr,Lam))
-        
-
-    else:
-        dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) - 1/Swz(r) * GM/c**2/r
-
-
-    # Note : Options 1&2 both run into numerical problems because dlnv_dlnr diverges not just at the
-    # sonic point but also in its vicinity.  It therefore completely dominates the dlnT_dlnr term
-    # when in reality it should be negligible because of the (u/c)**2 term.  Option 3 is the best to 
-    # avoid numerical problems, and no significant loss in precision or accuracy is made by ignoring
-    # the dlnv_dlnr term.
-
+    Lam = FLD_Lam(Lstar,r,u,T)
+    dlnT_dlnr = -Tstar(Lstar, T, r, rho, u) / (3*Lam) - 1/Swz(r) * GM/c**2/r  # remove small dv_dr term which has numerical problems near sonic point
     dT_dr = T/r * dlnT_dlnr
 
     mach = u/sqrt(B(T))
@@ -333,7 +292,7 @@ def outerIntegration(returnResult=False):
     inic = [Ts, 2.0]
     rmax = 50*rs
 
-
+    # Stopping events
     def hit_mach1(r,y): 
         if r>5*rs:
             return y[1]-2  # mach 1 
@@ -341,128 +300,28 @@ def outerIntegration(returnResult=False):
             return 1
     hit_mach1.terminal = True # stop integrating at this point
    
-
-    if FLD:    # for FLD : stop integrating when mach=1 (phi=2).  Then go a bit further in subsonic region
-        
-        
-        def hit_1e8(r,y):
-            return uphi(y[1],y[0],subsonic=False)-1e8
-        hit_1e8.direction = -1
-        hit_1e8.terminal = True
-        
-        
-        def dv_dr_zero(r,y):
-            if r>5*rs:
-                return numerator(r,y[0],uphi(y[1],y[0],subsonic=False))
-            else:
-                return -1
-        dv_dr_zero.direction = +1
-        dv_dr_zero.terminal = True
-            
-        
-        rmax=1e12
-        result1 = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
-                events=(dv_dr_zero,hit_mach1,hit_1e8), atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
-        
-        if verbose: 
-                print('FLD outer integration : ',result1.message)
-                
-        return result1
-                
-
-#        if verbose: print('First FLD integration message:', result1.message)
-#
-#        if result1.status == 1 and len(result1.t_events[0]==1):
-#
-#            rs2 = result1.t[-1] # second sonic point
-#            inic = result1.sol(rs2)
-#            assert(inic[1]==2)
-#
-#            result2 = solve_ivp(dr_wrapper_subsonic, (rs2,rs2+1e6), inic, method='Radau',
-#                    atol=1e-6, rtol=1e-10, dense_output=True)
-#
-#            if verbose: print('Second FLD integration message:',result2.message)
-#
-#            if returnResult:
-#                return [result1, result2]
-#        
-#        else:
-#            return [result1]
-
-
-    else:    # Not FLD : stop integrating when tau*=3
-
-        def hit_tau_out(r,y):
-            T,phi = y
-            u = uphi(phi, T, subsonic=False)
-            rho = Mdot/(4*pi*r**2*u*Y(r, u))
-            return taustar(r,rho,T) - tau_out
-        hit_tau_out.terminal = True
-
-
-        # Sonic point might be optically thin. Before we integrate, check if we start already at tau<3
-        taus = hit_tau_out(rs,inic) + tau_out
-        if taus < tau_out:
-            print('Sonic point is optically thin! Tau = %.3f'%taus)
-            return +400
-
-        # Now go
-        result = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='RK45',
-                    events=(hit_tau_out,hit_mach1), atol=1e-6, rtol=1e-6, dense_output=True)
-
-        if verbose: print(result.message)
-
-        if result.status == 1:              # A termination event occured
-        
-            if len(result.t_events[0]) == 1:    # The correct termination event occured (tau_out)
-
-                rphot,Tphot,phiphot = result.t[-1],result.y[0][-1],result.y[1][-1]
-                u, _, _, Lstar = calculateVars_phi(rphot, Tphot, phi=phiphot, subsonic=False)
-                L1 = Lcomoving(Lstar,rphot,u)
-                L2 = 4.0*pi*rphot**2*sigmarad*Tphot**4
-
-                if verbose: print('Found photosphere at log10 r = %.2f' % log10(rphot))
-
-                if returnResult:
-                    return result
-                else:
-                    return (L2 - L1) / (L1 + L2)      # Boundary error #1
-                
-                # The rest won't run if we return here
-                
-            else: 
-                flag_mach1 = 1
-                if verbose: print('Hit mach 1 before reaching a photosphere at log10 r = %.2f' % log10(result.t[-1]))
-
-  
-        #### Further analysis if we did not manage to reach a photosphere
-        flag_tauincrease = 0
-
-        tau = []
-        for ti,yi in zip(result.t,result.y.transpose()):
-            tau.append( hit_tau_out(ti,yi) + tau_out)
-
-        if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", min(tau))
-
-        # check if tau started to increase anywhere
-        grad_tau = gradient(tau)
-
-        if True in (grad_tau>0):
-            flag_tauincrease = 1
-            i = np.argwhere(grad_tau>0)[0][0]
-            if verbose: print("Tau started to increase at logr = %.2f" % log10(result.t[i]))
-
-
-        if returnResult:
-            return result
+    def hit_1e8(r,y):
+        return uphi(y[1],y[0],subsonic=False)-1e8
+    hit_1e8.direction = -1
+    hit_1e8.terminal = True
+    
+    def dv_dr_zero(r,y):
+        if r>5*rs:
+            return numerator(r,y[0],uphi(y[1],y[0],subsonic=False))
         else:
-            if flag_tauincrease:
-                return +200
-            else:
-                if flag_mach1:
-                    return +100
-                else:
-                    return +300   # a weird case that probably won't happen : reaching r_outer while never having a tau increase nor reaching phi=2
+            return -1
+    dv_dr_zero.direction = +1
+    dv_dr_zero.terminal = True
+        
+    # Go
+    rmax=1e12
+    sol = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
+            events=(dv_dr_zero,hit_mach1,hit_1e8), atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
+    
+    if verbose: 
+            print('FLD outer integration : ',result.message)
+            
+    return sol
 
 
 def innerIntegration_r():
@@ -472,21 +331,9 @@ def innerIntegration_r():
         print('**** Running innerIntegration R ****')
 
     inic = [Ts, 2.0]
-    # result,_ = odeint(dr, inic, r, args=(True,), atol=1e-6,
-    #                 rtol=1e-6,full_output=True)  # contains T(r) and phi(r)
 
     result = solve_ivp(dr_wrapper_subsonic, (rs,0.95*rs), inic, method='RK45',
                     atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(r) and phi(r)
-
-
-
-    # # Trying stepping off sonic point
-    # dT,_ = dr_wrapper_subsonic(rs,[Ts,2.0]) # dphi is numerically not zero, which causes problems
-    # dr = rs/1000
-    # inic = [Ts-dr*dT, 2.0]
-    # result = solve_ivp(dr_wrapper_subsonic, (rs-dr,0.95*rs), inic, method='RK45',
-    #                 atol=1e-6, rtol=1e-6, dense_output=True)    # contains T(r) and phi(r)
-
 
     if verbose: print(result.message)
 
@@ -587,31 +434,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
     if mode == 'rootsolve':
 
-        if FLD:
-            raise TypeError("rootsolving not yet setup for FLD")
-
-        # First error is given by the outer luminosity
-        error1 = outerIntegration()
-
-        if error1 in (100,200,300,400) and IgnoreErrors is False:   # don't bother integrating inwards (unless required to)
-            return [error1, error1]
-
-        else:
-
-            # First inner integration
-            r95 = 0.95*rs
-            r_inner1 = linspace(rs, r95, 1000)
-            result_inner1 = innerIntegration_r()
-            T95, phi95 = result_inner1.sol(r95)
-            _, rho95, _, _ = calculateVars_phi(r95, T95, phi=phi95, subsonic=True)
-
-            # Second inner integration
-            rho_inner2 = logspace(log10(rho95), log10(rhomax), 2000)
-            # error2 = innerIntegration_rho(rho_inner2, T95)
-            error2 = innerIntegration_rho(rho95, T95)
-
-
-            return error1, error2
+        sys.exit("Rootsolving is done in RootFinding_FLD.py")
 
     elif mode == 'wind':  # Same thing but calculate variables and output all of the arrays
 
