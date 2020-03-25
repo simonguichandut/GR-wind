@@ -55,7 +55,7 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
         cont = True
 
         while abs(b-a)>tol and cont:
-            print('%.6f\t%.6f'%(a,b))
+            print('%.6f    %.6f'%(a,b))
 
             for logTs in logTsvals[1:]:
                 if Verbose: print(logTs)
@@ -86,6 +86,7 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
         IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b])
 
         a,b = a,8  # next Edot, Ts will certainly be higher than this one
+        print('ok'.ljust(20))
 
     # Or save all at the end
     # IO.save_EdotTsrel(logMdot,Edotvals,Tsvals,np.array(Tsvals)+tol)
@@ -105,7 +106,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         print('Edot-Ts relation file does not exist, creating..')
         get_TsEdotrel(logMdot,Verbose=Verbose)
         rel = IO.load_EdotTsrel(logMdot)
-        print('Done.')
+        print('\nDone!')
 
     IO.clean_EdotTsrelfile(logMdot)
     if Verbose: print('Loaded Edot-Ts relation from file')
