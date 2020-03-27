@@ -175,7 +175,6 @@ def rSonic(Ts):
         
         npoints += 10
     # print('sonic: rkeep1 = %.3e \t rkeep2 = %.3e'%(rkeep1,rkeep2))
-    global rs
     rs = brentq(numerator, rkeep1, rkeep2, args=(Ts, vs), maxiter=100000)
     return rs
 
@@ -286,14 +285,11 @@ def drho(rho, y):
 
 # -------------------------------------------- Integration ---------------------------------------------
 
-def outerIntegration(returnResult=False):
-    ''' Integrates out from the sonic point until the photosphere is reached '''
+def outerIntegration(r0,T0,phi0,rmax=1e10):
+    ''' Integrates out from r0 to rmax tracking T and phi '''
 
     if verbose:
-        print('\n**** Running outerIntegration ****')
-
-    inic = [Ts, 2.0]
-    rmax = 50*rs
+        print('**** Running outerIntegration ****')
 
     # Stopping events
     def hit_mach1(r,y): 
@@ -313,26 +309,22 @@ def outerIntegration(returnResult=False):
             return numerator(r,y[0],uphi(y[1],y[0],subsonic=False))
         else:
             return -1
-    dv_dr_zero.direction = +1
+    dv_dr_zero.direction = +1  # triggers when going from negative to positive (numerator is negative in supersonic region)
     dv_dr_zero.terminal = True
         
     # Go
-    rmax=1e10
-    sol = solve_ivp(dr_wrapper_supersonic, (rs,rmax), inic, method='Radau', 
+    inic = [T0,phi0]
+    sol = solve_ivp(dr_wrapper_supersonic, (r0,rmax), inic, method='Radau', 
             events=(dv_dr_zero,hit_mach1,hit_1e8), atol=1e-6, rtol=1e-10, dense_output=True, max_step=1e5)
     
-    if verbose: 
-            print('FLD outer integration : ',sol.message)
-            print('rmax = %.3e\n\n'%sol.t[-1])
-            
+    if verbose: print('FLD outer integration : ',sol.message, ('rmax = %.3e'%sol.t[-1]))
     return sol
-
 
 def innerIntegration_r():
     ''' Integrates in from the sonic point to 95% of the sonic point, using r as the independent variable '''
     
     if verbose:
-        print('\n**** Running innerIntegration R ****')
+        print('**** Running innerIntegration R ****')
 
     inic = [Ts, 2.0]
 
@@ -349,7 +341,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         We want to match the location of p=p_inner to the NS radius '''
 
     if verbose:
-        print('\n**** Running innerIntegration RHO ****')
+        print('**** Running innerIntegration RHO ****')
 
     inic = [T95, 0.95*rs]
 
@@ -412,6 +404,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # ------------------------------------------------- Wind ---------------------------------------------------
 
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
+# In this case the tuple also includes lambda!
 Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
 
 def setup_globals(params,logMdot,Verbose,return_them=False):
@@ -420,6 +413,158 @@ def setup_globals(params,logMdot,Verbose,return_them=False):
     if return_them:
         return Mdot, Edot, Ts, verbose
 
+
+def OuterBisection(rend=1e9,tol=1e-5):
+
+    """ Makes a full outer solution for the wind by integrating until divergence, interpolating values by bissection
+    and restarting prior to divergence point, over and over until reaching rend."""
+
+    # get the solution from the root's Ts (rs and Ts already set as global)
+    if verbose: print('Calculating solution from Ts root')
+    rsa,Tsa = rs,Ts
+    sola = outerIntegration(r0=rsa,T0=Tsa,phi0=2.0)
+
+    # find other solution that diverges in different direction
+    if sola.status == 0: 
+        sys.exit('reached end of integration interval with root!')
+
+    elif sola.status == +1:
+        direction = +1  # reached dv/dr=0, other solution needs to have higher Ts
+    elif sola.status == -1:
+        direction = -1 # diverged, other solution needs to have smaller Ts
+
+    if verbose: print('Finding second solution')
+    step = 1e-6
+    Tsb,solb = Tsa,sola
+    i=0
+    while solb.status == sola.status:
+
+        if i>0: 
+            Tsa,rsa,sola = Tsb,rsb,solb  # might as well update solution a (since this process gets closer to the right Ts)
+
+        logTsb = log10(Tsb) + direction*step
+        Tsb = 10**logTsb
+        rsb = rSonic(Tsb)
+        solb = outerIntegration(r0=rsb,T0=Tsb,phi0=2.0)
+        i+=1
+        if i==200:
+            print('Not able to find a solution that diverges in opposite direction after changing Ts by 200 tolerances.  Problem in the TsEdot interpolation')
+            raise
+
+    # if sola was the high Ts one, switch sola and solb
+    if direction == -1:
+        (rsa,Tsa,sola),(rsb,Tsb,solb) = (rsb,Tsb,solb),(rsa,Tsa,sola)
+            
+    if verbose:
+        print('Two initial solutions. sonic point values:')
+        print('logTs - sola:%.6f \t solb:%.6f'%(log10(Tsa),log10(Tsb)))
+        print('logrs - sola:%.6f \t solb:%.6f'%(log10(rsa),log10(rsb)))
+
+
+    def check_convergence(sola,solb,rcheck):
+        """ checks if two solutions are converged (similar T and phi) at some radius """
+        Ta,phia = sola.sol(rcheck)
+        Tb,phib = solb.sol(rcheck)
+        if abs(Ta-Tb)/Ta < tol and abs(phia-phib)/phia < tol:
+            return True,Ta,Tb,phia,phib
+        else:
+            return False,Ta,Tb,phia,phib
+
+
+    # Start by finding the first point of divergence
+    Npts = 1000
+    R = logspace(log10(rsa),log10(rend),Npts)      # choose colder (larger) rs (rsa) as starting point because sola(rsb) doesnt exist
+    for i,ri in enumerate(R):
+        conv = check_convergence(sola,solb,ri)
+        if conv[0] is False:
+            i0=i            # i0 is index of first point of divergence
+            break
+        else:
+            Ta,Tb,phia,phib = conv[1:]
+
+    if i0==0:
+        print('Diverging at rs!')
+        print(conv)
+        print('rs=%.5e \t rsa=%.5e \t rsb=%.5e'%(rs,rsa,rsb))
+        raise
+
+    # Construct initial arrays
+    T,Phi = sola.sol(R[:i0])
+    def update_arrays(T,Phi,sol,R,j0,jf):
+        # Add new values from T and Phi using ODE solution object. Radius points to add are R[j0] and R[jf]
+        Tnew,Phinew = sol(R[j0:jf+1])  # +1 so R[jf] is included
+        T,Phi = np.concatenate((T,Tnew)), np.concatenate((Phi,Phinew))
+        return T,Phi
+
+    # Begin bisection
+    if verbose:
+        print('\nBeginning bisection')
+        print('rconv (km) \t Step # \t Iter \t m')  
+    a,b = 0,1
+    step,count = 0,0
+    i = i0
+    rconv = R[i-1]  # converged at that radius
+    rcheck = R[i]   # checking if converged at that radius
+    do_bisect = True
+    while rconv<rend:  # probably can be replaced by while True if the break conditions are all ok
+
+        if do_bisect: # Calculate a new solution from interpolated values
+            
+            m = (a+b)/2
+            Tm,phim = Ta + m*(Tb-Ta) , phia + m*(phib-phia)
+            solm = outerIntegration(r0=rconv,T0=Tm,phi0=phim) # go further than rmax to give it the chance to diverge either way
+
+            if solm.status == 0: # Reached rend - done
+                T,Phi = update_arrays(T,Phi,solm.sol,R,i0,Npts)  #jf=Npts so that it includes the last point of R
+                print('reached end of integration interval  without necessarily converging.. perhaps wrong')
+                return R,T,Phi
+
+            elif solm.status == 1:
+                a,sola = m,solm
+            elif solm.status == -1:
+                b,solb = m,solm
+
+        else:
+            i += 1
+            rconv = R[i-1]
+            rcheck = R[i] 
+
+        conv = check_convergence(sola,solb,rcheck)
+        if conv[0] is True:
+
+            # Exit here if reached rend
+            if rcheck==rend or i==Npts:  # both should be the same
+                T,Phi = update_arrays(T,Phi,solm.sol,R,i0,i)
+                return R,T,Phi
+
+            Ta,Tb,phia,phib = conv[1:]
+            a,b = 0,1 # reset bissection parameters
+            step += 1 # update step counter
+            count = 0 # reset iteration counter
+
+            # Converged, so on next iteration just look further
+            do_bisect = False 
+        
+        else:
+            count+=1
+            do_bisect = True
+
+            # Before computing new solution, add converged results to array (but only if we made at least 1 step progress)
+            if i-1>i0:
+                T,Phi = update_arrays(T,Phi,solm.sol,R,i0,i-1)  # i-1 is where we converged last
+                i0=i # next time we append
+
+        # Exit if stuck at one step
+        nitermax=1000
+        if count==nitermax:
+            sys.exit("Could not integrate out to rend! Exiting after being stuck at the same step for %d iterations"%nitermax)
+
+        # End of step
+        if verbose: print('%.4e \t %d \t\t %d \t\t %f'%(rconv,step,count,m))
+
+    return R,T,Phi
+
+
 def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and log10(Ts).
         The modes are rootsolve : not output, just obtaining the boundary errors, 
@@ -427,94 +572,4 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
     setup_globals(params,logMdot,Verbose)
 
-    if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edot/Ledd = %.5f'%(logMdot,log10(Ts),Edot/LEdd))
-
-    # Start by finding the sonic point
-    rs = rSonic(Ts)
-    
-    if verbose:
-        print('For log10Ts = %.2f, located sonic point at log10r = %.2f' %
-              (log10(Ts), log10(rs)))
-
-    if mode == 'rootsolve':
-
-        sys.exit("Rootsolving is done in RootFinding_FLD.py")
-
-    elif mode == 'wind':  # Same thing but calculate variables and output all of the arrays
-
-        if FLD:  # FLD only returns the results from outer integration. This is meant to be temporary
-
-            res = outerIntegration(returnResult=True)
-            
-            r = res.t
-            T,phi = res.sol(r)
-            u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_phi(r,T,phi,return_all=True)
-            wind1 = Wind(r,T,rho,u,phi,Lstar,L,LEdd_loc,E,P,cs,tau,lam,rs,Edot,Ts)
-            
-            return wind1
-
-
-        else:   
-
-            # Outer integration
-            result_outer = outerIntegration(returnResult=True)
-            # r_outer = linspace(rs,result_outer.t[-1],2000)
-            r_outer = linspace(1.01*rs,result_outer.t[-1],2000)   # ignore data in 1% around rs
-            T_outer, phi_outer = result_outer.sol(r_outer)
-
-            # re-add sonic point values
-            r_outer, T_outer, phi_outer = np.insert(r_outer, 0, rs), np.insert(T_outer, 0, Ts), np.insert(phi_outer, 0, 2.0)
-
-            _, rho_outer, _, _ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, subsonic=False)
-
-            # First inner integration
-            r95 = 0.95*rs
-            # r_inner1 = linspace(rs, r95, 500)
-            r_inner1 = linspace(0.99*rs, r95, 30)      # ignore data in 1% around rs
-            result_inner1 = innerIntegration_r()
-            T95, phi95 = result_inner1.sol(r95)
-            T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
-
-            _, rho_inner1, _, _ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, subsonic=True)
-            rho95 = rho_inner1[-1]
-
-            # Second inner integration 
-            result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-            rho_inner2 = logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
-            T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
-            
-
-            # Attaching arrays for r,rho,T from surface to photosphere   (ignoring first point in inner2 because duplicate values at r=r95)
-            r_inner = np.append(np.flip(r_inner2[1:], axis=0),
-                                np.flip(r_inner1, axis=0))
-            T_inner = np.append(np.flip(T_inner2[1:], axis=0),
-                                np.flip(T_inner1, axis=0))
-            rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
-                                np.flip(rho_inner1, axis=0))
-
-            R = np.append(r_inner, r_outer)
-            T = np.append(T_inner, T_outer)
-            Rho = np.append(rho_inner, rho_outer)
-
-            # Calculate the rest of the vars
-            u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam = calculateVars_rho(R, T, rho=Rho, return_all=True)
-
-            return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam, rs, Edot, Ts)
-
-
-
-
-# # For testing when making modifications to this script
-
-# x,z = IO.load_roots()
-
-## All solutions
-# verbose=0
-# for logmdot,root in zip(x,z):
-#    err1,err2=MakeWind(root,logmdot,Verbose=verbose)
-#    print('%.2f \t\t %.3e \t-\t %.3e\n'%(logmdot,err1,err2))
-
-# # # Just one solution
-# # err1,err2=MakeWind(z[20],x[20], Verbose=True)
-# # err1,err2=MakeWind([1.02,7.1],18.9)
-# # print(err1,err2)
+    if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edo

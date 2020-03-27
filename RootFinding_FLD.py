@@ -15,15 +15,16 @@ the correct one.  This gives a Edot-Ts relation, on which we can rootfind based 
 
 M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
 
-def run_outer(logMdot,Edot_LEdd,logTs,Verbose=0):
+def run_outer(logMdot,Edot_LEdd,logTs,Verbose=0):  # full outer solution from sonic point
     global Mdot,Edot,Ts,verbose,rs
     Mdot, Edot, Ts, verbose = setup_globals([Edot_LEdd,logTs],logMdot,Verbose=Verbose,return_them=True)
     rs = rSonic(Ts)
     if rs<RNS and Verbose: print('warning: sonic point less than 12km')
 
-    return outerIntegration(returnResult=True)
+    # High rmax to ensure we find two solutions that diverge separatly in rootfinding process
+    return outerIntegration(r0=rs, T0=Ts, phi0=2.0, rmax=1e12)
 
-def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):
+def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner solution from sonic point
     global Mdot,Edot,Ts,verbose,rs
     Mdot, Edot, Ts, verbose = setup_globals([Edot_LEdd,logTs],logMdot,Verbose=Verbose,return_them=True)
     rs = rSonic(Ts)
@@ -67,6 +68,9 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
 
                 if res.status==1:
                     a = logTs
+                elif res.status==0:
+                    print('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
+                    raise
                 else:
                     b = logTs
                     break
@@ -157,7 +161,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         print('Found root : ',root,'. Error on NS radius: ',Err(x))
         return root
 
-# RootFinder(18,checkrel=False)
+# RootFinder(18,checkrel=True)
 
 
 
