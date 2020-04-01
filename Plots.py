@@ -99,7 +99,7 @@ colors = ['r', 'b', 'g', 'k', 'm']
 
 i = 0
 # for logMdot, root in zip(logMDOTS, roots):
-for logMdot, root in zip(logMDOTS[-2:], roots[-2:]):
+for logMdot, root in zip(logMDOTS, roots):
 
     print(logMdot)
     global Mdot, verbose
@@ -115,41 +115,41 @@ for logMdot, root in zip(logMDOTS[-2:], roots[-2:]):
 
     Lbs.append(w.Lstar[0])
 
-#     if logMdot in (17.25, 17.5, 17.75, 18, 18.25 , 18.5, 18.75, 19):
+    if logMdot in (17.25, 17.5, 17.75, 18, 18.25 , 18.5, 18.75, 19):
 
-#         c = colors[int(np.floor(i/2)-1)]
-#         ls = '-' if i%2==0 else '--'
+        c = colors[int(np.floor(i/2)-1)]
+        ls = '-' if i%2==0 else '--'
 
-#         ax1.semilogx(w.r, w.Lstar/LEdd,color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-#         beautify(fig1,ax1)
+        ax1.semilogx(w.r, w.Lstar/LEdd,color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        beautify(fig1,ax1)
 
-#         def myloglogplot(ax,x,y):
-#                 ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
-#         def draw_sonicpoint(ax,x,y):
-#                 sonic = list(w.r).index(w.rs)
-#                 ax.loglog([x[sonic]] , [y[sonic]], marker='.', color='k')
-#         for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (w.r,w.rho,w.r,w.r,w.rho,w.rho) , (w.T,w.T,w.u,w.P,eos.kappa(w.rho,w.T),w.tau)):
-#                 myloglogplot(ax,x,y)
-#                 if i%2==0:draw_sonicpoint(ax,x,y)
-#                 beautify(fig,ax)
+        def myloglogplot(ax,x,y):
+                ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+        def draw_sonicpoint(ax,x,y):
+                sonic = list(w.r).index(w.rs)
+                ax.loglog([x[sonic]] , [y[sonic]], marker='.', color='k')
+        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (w.r,w.rho,w.r,w.r,w.rho,w.rho) , (w.T,w.T,w.u,w.P,eos.kappa(w.rho,w.T),w.tau)):
+                myloglogplot(ax,x,y)
+                if i%2==0:draw_sonicpoint(ax,x,y)
+                beautify(fig,ax)
 
-#         i += 1
+        i += 1
 
-# for ax in (ax1,ax2,ax3,ax4,ax5,ax7,ax8):
-#         ax.legend(title=r'log $\dot{M}$ (g/s)', loc='best')
+for ax in (ax1,ax2,ax3,ax4,ax5,ax7,ax8):
+        ax.legend(title=r'log $\dot{M}$ (g/s)', loc='best')
 
-# # Additionnal plots
+# Additionnal plots
 
-# Fbs = array(Lbs)/(4*pi*(RNS*1e5)**2)  # redshifted base flux
-# fig6, ax6 = plt.subplots(1, 1)
-# ax6.set_xlabel(r'$F_{b,\infty}$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
-# ax6.set_ylabel(r'log $\dot{M}$ (g/s)')
-# ax6.plot(Fbs/1e25,logMDOTS,'k.-',lw=0.8)
-# beautify(fig6,ax6)
+Fbs = array(Lbs)/(4*pi*(RNS*1e5)**2)  # redshifted base flux
+fig6, ax6 = plt.subplots(1, 1)
+ax6.set_xlabel(r'$F_{b,\infty}$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
+ax6.set_ylabel(r'log $\dot{M}$ (g/s)')
+ax6.plot(Fbs/1e25,logMDOTS,'k.-',lw=0.8)
+beautify(fig6,ax6)
 
 
-# if save: 
-#     save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot','Opacity','Optical_depth'],img)
-#     print('Plots saved')
-# else:
-#     plt.show()
+if save: 
+    save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot','Opacity','Optical_depth'],img)
+    print('Plots saved')
+else:
+    plt.show()

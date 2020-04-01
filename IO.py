@@ -89,17 +89,19 @@ def write_to_file(logMdot,wind):
     filename = path + str(logMdot) + '.txt'
 
     with open(filename,'w') as f:
-        f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
-            'r (cm)','u (cm/s)','cs (cm/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau','lambda'))
+        f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
+            'r (cm)','u (cm/s)','cs (cm/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau','taustar','lambda'))
 
         if 'FLD' not in get_name():
             Lam = 1/3*np.ones(len(wind.r)) # optically thick is as if lambda was always 1/3
+            tau = wind.taustar # there is no way to calculate real optical depth for pure optically thick
         else:
             Lam = wind.lam  # If calculated with FLD parameter, lambda should be in the wind namedtuple object
+            tau = wind.tau  # Same for tau (true optical depth)
 
         for i in range(len(wind.r)):
-            f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
-                (wind.r[i] , wind.u[i] , wind.cs[i] , wind.rho[i] , wind.T[i] , wind.P[i] , wind.phi[i] , wind.L[i] , wind.Lstar[i] , wind.E[i], wind.tau[i], Lam[i]))
+            f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
+                (wind.r[i] , wind.u[i] , wind.cs[i] , wind.rho[i] , wind.T[i] , wind.P[i] , wind.phi[i] , wind.L[i] , wind.Lstar[i] , wind.E[i], tau[i], wind.taus[i], Lam[i]))
 
             if wind.r[i]!=wind.rs:
                 f.write('\n')
@@ -126,7 +128,7 @@ def write_to_file(logMdot,wind):
 
 def read_from_file(logMdot,specific_file=None):
 
-    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau and sonic point rs. '''
+    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus and sonic point rs. '''
 
     if specific_file != None:
         filename = specific_file
@@ -140,15 +142,28 @@ def read_from_file(logMdot,specific_file=None):
         for var,col in zip(varz,cols):
             var.append(float(l[col]))
 
-    R, u, cs, rho, T, P, phi, L, Lstar, E, tau, lam = [[] for i in range (12)]
+    # old version (no tau)
+    R, u, cs, rho, T, P, phi, L, Lstar, E, taus, lam = [[] for i in range (12)]
     with open(filename,'r') as f:
         next(f)
         for line in f: 
-            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, tau, lam],[i for i in range(12)])
+            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, taus, lam],[i for i in range(12)])
             if line.split()[-1]=='point': rs = float(line.split()[0])
 
-    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),array(lam),rs
-    # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,tau,lam,rs
+    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(taus),array(lam),rs
+    
+    # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,taus,lam,rs
+
+
+    # R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus, lam = [[] for i in range (13)]
+    # with open(filename,'r') as f:
+    #     next(f)
+    #     for line in f: 
+    #         append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus, lam],[i for i in range(12)])
+    #         if line.split()[-1]=='point': rs = float(line.split()[0])
+
+    # return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),array(taus),array(lam),rs
+    # # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,tau,taus,lam,rs
 
 
 def save_plots(figs,fignames,img):

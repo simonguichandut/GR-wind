@@ -162,8 +162,8 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
         E = eos.internal_energy(rho, T)
         P = eos.pressure(rho, T)
         cs = sqrt(eos.cs2(T))
-        tau = taustar(r,rho,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
+        taus = taustar(r,rho,T)
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, taus
 
 def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate electrons if EOS_type is set to 'IGDE'
 
@@ -196,8 +196,8 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate e
         L = Lcomoving(Lstar,r,u)
         LEdd_loc = Lcrit(r,rho,T)
         cs = sqrt(eos.cs2(T))
-        tau = taustar(r,rho,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau
+        taus = taustar(r,rho,T)
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, taus
 
         
 
@@ -295,7 +295,7 @@ def outerIntegration(returnResult=False):
     # Sonic point might be optically thin. Before we integrate, check if we start already at tau<3
     taus = hit_tau_out(rs,inic) + tau_out
     if taus < tau_out:
-        print('Sonic point is optically thin! Tau = %.3f'%taus)
+        print('Sonic point is optically thin! Taustar = %.3f'%taus)
         return +400
 
     # Now go
@@ -330,19 +330,19 @@ def outerIntegration(returnResult=False):
     #### Further analysis if we did not manage to reach a photosphere
     flag_tauincrease = 0
 
-    tau = []
+    taus = []
     for ti,yi in zip(result.t,result.y.transpose()):
-        tau.append( hit_tau_out(ti,yi) + tau_out)
+        taus.append( hit_tau_out(ti,yi) + tau_out)
 
     if verbose: print("tau = ", tau_out, " never reached! Minimum tau reached :", min(tau))
 
     # check if tau started to increase anywhere
-    grad_tau = gradient(tau)
+    grad_taus = gradient(taus)
 
-    if True in (grad_tau>0):
+    if True in (grad_taus>0):
         flag_tauincrease = 1
         i = np.argwhere(grad_tau>0)[0][0]
-        if verbose: print("Tau started to increase at logr = %.2f" % log10(result.t[i]))
+        if verbose: print("Taustar started to increase at logr = %.2f" % log10(result.t[i]))
 
 
     if returnResult:
@@ -453,7 +453,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # ------------------------------------------------- Wind ---------------------------------------------------
 
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
-Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','rs','Edot','Ts'])   
+Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','taus','rs','Edot','Ts'])   
 
 def setup_globals(params,logMdot,Verbose,return_them=False):
     global Mdot, Edot, Ts, verbose
@@ -545,9 +545,9 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
         Rho = np.append(rho_inner, rho_outer)
 
         # Calculate the rest of the vars
-        u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, tau = calculateVars_rho(R, T, rho=Rho, return_all=True)
+        u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, taus = calculateVars_rho(R, T, rho=Rho, return_all=True)
 
-        return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts)
+        return Wind(R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, taus, rs, Edot, Ts)
 
 
 

@@ -8,8 +8,9 @@ import sys
 import numpy as np
 from numpy import linspace, logspace, sqrt, log10, array, pi, gradient
 from scipy.optimize import brentq
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp,quad
 from collections import namedtuple
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS 
 import IO
 import physics
 
@@ -202,9 +203,9 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
         E = eos.internal_energy(rho, T)
         P = eos.pressure(rho, T)
         cs = sqrt(eos.cs2(T))
-        tau = taustar(r,rho,T)
+        taus = taustar(r,rho,T)
         lam = FLD_Lam(Lstar,r,u,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, taus, lam
 
 def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate electrons if EOS_type is set to 'IGDE'
 
@@ -237,9 +238,9 @@ def calculateVars_rho(r, T, rho, return_all=False): # Will consider degenerate e
         L = Lcomoving(Lstar,r,u)
         LEdd_loc = Lcrit(r,rho,T)
         cs = sqrt(eos.cs2(T))
-        tau = taustar(r,rho,T)
+        taus = taustar(r,rho,T)
         lam = FLD_Lam(Lstar,r,u,T)
-        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, tau, lam
+        return u, rho, phi, Lstar, L, LEdd_loc, E, P, cs, taus, lam
 
         
 
@@ -404,8 +405,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 # ------------------------------------------------- Wind ---------------------------------------------------
 
 # A named tuple allows us to access arrays by their variable name, while also being able to tuple unpack to get everything
-# In this case the tuple also includes lambda!
-Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','LEdd_loc','E','P','cs','tau','lam','rs','Edot','Ts'])   
+Wind = namedtuple('Wind',['r','T','rho','u','phi','Lstar','L','E','P','cs','tau','taus','lam','rs','Edot','Ts'])   
 
 def setup_globals(params,logMdot,Verbose,return_them=False):
     global Mdot, Edot, Ts, verbose
@@ -572,4 +572,86 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
 
     setup_globals(params,logMdot,Verbose)
 
-    if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edo
+    if verbose: print('\nMaking a wind for logMdot = %.2f, logTs = %.5f, Edot/Ledd = %.5f'%(logMdot,log10(Ts),Edot/LEdd))
+
+    # Start by finding the sonic point
+    global rs
+    rs = rSonic(Ts)
+    
+    if verbose:
+        print('For log10Ts = %.2f, located sonic point at log10r = %.2f' %
+              (log10(Ts), log10(rs)))
+
+    if mode == 'rootsolve':
+
+        sys.exit("Rootsolving is done in RootFinding_FLD.py")
+
+    elif mode == 'wind':  # Same thing but calculate variables and output all of the arrays
+
+        # Outer integration
+        r_outer,T_outer, phi_outer = OuterBisection()
+        _, rho_outer, _, _ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, subsonic=False)
+
+        # Sonic point changes slightly in the bisection process
+        Tsnew,rsnew = T_outer[0], r_outer[0]
+        print('Change in sonic point (caused by error in Edot-Ts relation interpolation)')
+        print('root:\t Ts = %.5e \t rs = %.5e'%(Ts,rs))
+        print('new:\t  Ts = %.5e \t rs = %.5e'%(Tsnew,rsnew))
+        print('Judge if this is a problem or not')
+
+        # Ts,rs = Tsnew, rsnew        
+
+        # First inner integration
+        r95 = 0.95*rs
+        # r_inner1 = linspace(rs, r95, 500)
+        r_inner1 = linspace(0.99*rs, r95, 30)      # ignore data in 1% around rs
+        result_inner1 = innerIntegration_r()
+        T95, phi95 = result_inner1.sol(r95)
+        T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
+
+        _, rho_inner1, _, _ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, subsonic=True)
+        rho95 = rho_inner1[-1]
+
+        # Second inner integration 
+        result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
+        rho_inner2 = logspace(log10(rho95) , log10(result_inner2.t[-1]), 2000)
+        T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
+        
+
+        # Attaching arrays for r,rho,T from surface to photosphere   (ignoring first point in inner2 because duplicate values at r=r95)
+        r_inner = np.append(np.flip(r_inner2[1:], axis=0),
+                            np.flip(r_inner1, axis=0))
+        T_inner = np.append(np.flip(T_inner2[1:], axis=0),
+                            np.flip(T_inner1, axis=0))
+        rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
+                            np.flip(rho_inner1, axis=0))
+
+        R = np.append(r_inner, r_outer)
+        T = np.append(T_inner, T_outer)
+        Rho = np.append(rho_inner, rho_outer)
+
+        # Calculate the rest of the vars
+        u, Rho, Phi, Lstar, L, LEdd_loc, E, P, cs, taus, lam = calculateVars_rho(R, T, rho=Rho, return_all=True)
+
+        # Calculate true optical depth : tau=int_0^d kappa*rho
+        # Interpolate T and rho
+        rend = R[-1]
+        fT,frho = IUS(R,T),IUS(R,Rho)
+        def integrand(d):
+            r = rend-d
+            return eos.kappa(frho(r),fT(r))*frho(r)
+        
+        tau = []
+        for r in R:
+            tau.append(quad(integrand,0,rend-r,limit=100)[0])
+
+
+        return Wind(R, T, Rho, u, Phi, Lstar, L, E, P, cs, tau, taus, lam, rsnew, Edot, Tsnew)
+
+
+
+
+# # For testing when making modifications to this script
+
+# x,z = IO.load_roots()
+# W = MakeWind(z[3],x[3], mode='wind', Verbose=True)
