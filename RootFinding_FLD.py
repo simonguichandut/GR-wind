@@ -45,7 +45,7 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
 
     if Verbose: print('\nLOGMDOT = %.2f\n'%logMdot)
 
-    Edotvals = linspace(1.01,1.05,15)
+    Edotvals = np.linspace(1.01,1.05,15)
     Tsvals = []
     a,b = 6.1,8
     
@@ -69,8 +69,7 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
                 if res.status==1:
                     a = logTs
                 elif res.status==0:
-                    print('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
-                    raise
+                    raise Exception('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
                 else:
                     b = logTs
                     break
@@ -152,8 +151,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
     erra = Err(Edotvals[0])
     errb = Err(Edotvals[-1])
     if erra*errb > 0: #same sign
-        print('No root in the interval')
-        raise
+        raise Exception('No root in the interval')
 
     else:
         x = brentq(Err,Edotvals[0],Edotvals[-1])

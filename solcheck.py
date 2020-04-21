@@ -91,8 +91,8 @@ def check_solution(logMdot, wind):
 from IO import load_roots
 x,z = load_roots()
 
-wind = MakeWind(z[20],x[20],mode='wind')
+wind = MakeWind(z[0],x[0],mode='wind')
 # fig=plt.figure()
 # plt.loglog(R,Phi,'b.')
-check_solution(x[20],wind) 
+check_solution(x[0],wind) 
 plt.show()

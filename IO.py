@@ -1,9 +1,9 @@
 ''' Input and Output '''
 
 import os
-from numpy import log10,array,pi,argmin
+import numpy as np
 
-def load_params():
+def load_params(as_dict=True):
     with open('params.txt','r') as f:
         next(f)
         M = float(f.readline().split()[1])
@@ -21,14 +21,23 @@ def load_params():
         save = f.readline().split()[1]
         img = f.readline().split()[1]
         
-    return M,R,y_inner,tau_out,comp,EOS_type,FLD,mode,save,img
+    if as_dict is True:
+        return {'M':M,'R':R,'y_inner':y_inner,'tau_out':tau_out,
+                'comp':comp,'EOS_type':EOS_type,'FLD':FLD,'mode':mode,
+                'save':save,'img':img}
+    else:
+        return M,R,y_inner,tau_out,comp,EOS_type,FLD,mode,save,img
 
 
-def get_name():  # We give various files and directories the same name corresponding to the setup given in the parameter file
-
-    M,R,y_inner,tau_out,comp,EOS_type,FLD,_,_,_ = load_params()
-    name = '_'.join( [ comp , EOS_type, ('M%.1f'%M) , ('R%2d'%R) , ('tau%1d'%tau_out) , ('y%1d'%log10(y_inner)) ] )
-    if FLD: name += '_FLD'
+def get_name():  
+    # We give various files and directories the same name corresponding 
+    # to the setup given in the parameter file
+    params = load_params()
+    name = '_'.join([ 
+        params['comp'], params['EOS_type'], ('M%.1f'%params['M']), 
+        ('R%2d'%params['R']) , ('tau%1d'%params['tau_out']), 
+        ('y%1d'%np.log10(params['y_inner'])) ])
+    if params['FLD'] == True: name += '_FLD'
     return name
 
 
@@ -68,128 +77,127 @@ def load_roots():
         return logMDOTS,roots
 
 
-
 def make_directories():
-
-    dirname = get_name()
-    path = 'results/' + dirname
-    if not os.path.exists(path):   # Assuming code is being run from main directory
+    path = 'results/' + get_name()
+    if not os.path.exists(path): # Assuming code is being run from main dir
         os.mkdir(path)
         os.mkdir(path+'/data')
         os.mkdir(path+'/plots')
 
 
-
 def write_to_file(logMdot,wind):
-
     # Expecting wind type namedtuple object
 
     dirname = get_name()
     path = 'results/' + dirname + '/data/'
-    filename = path + str(logMdot) + '.txt'
+    filename = path + ('%.2f'%logMdot) + '.txt'
 
     with open(filename,'w') as f:
-        f.write('{:<13s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s} \t {:<11s}\n'.format(
-            'r (cm)','u (cm/s)','cs (cm/s)','rho (g/cm3)','T (K)','P (dyne/cm2)','phi','L (erg/s)','L* (erg/s)','E (erg)','tau','taustar','lambda'))
 
-        if 'FLD' not in get_name():
-            Lam = 1/3*np.ones(len(wind.r)) # optically thick is as if lambda was always 1/3
-            tau = wind.taustar # there is no way to calculate real optical depth for pure optically thick
-        else:
-            Lam = wind.lam  # If calculated with FLD parameter, lambda should be in the wind namedtuple object
-            tau = wind.tau  # Same for tau (true optical depth)
+        # Write header
+        f.write(('{:<11s} \t'*10).format(
+            'r (cm)','T (K)','rho (g/cm3)','P (dyne/cm2)','u (cm/s)',
+            'cs (cm/s)','phi','L (erg/s)','L* (erg/s)','taus'))
 
+        if load_params()['FLD'] == True:
+            f.write('{:<11s}'.format('lambda'))
+
+        f.write('\n')
+
+        # Write values
         for i in range(len(wind.r)):
-            f.write('%0.8e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e \t %0.6e'%
-                (wind.r[i] , wind.u[i] , wind.cs[i] , wind.rho[i] , wind.T[i] , wind.P[i] , wind.phi[i] , wind.L[i] , wind.Lstar[i] , wind.E[i], tau[i], wind.taus[i], Lam[i]))
+            f.write(('%0.6e \t'*10)%(
+                wind.r[i], wind.T[i], wind.rho[i], wind.P[i], wind.u[i],
+                wind.cs[i], wind.phi[i], wind.L[i], wind.Lstar[i], wind.taus[i]))
 
-            if wind.r[i]!=wind.rs:
-                f.write('\n')
-            else:
-                f.write('\t sonic point\n')
+            if load_params()['FLD'] == True:
+                f.write('%0.6e \t'%wind.lam[i])
+
+            if wind.r[i] == wind.rs:
+                f.write('sonic point')
+
+            f.write('\n')
 
 
-    # Flux Mdot file 
-    Lbs = wind.Lstar[0]
-    Fbs = Lbs/(4*pi*wind.r[0]**2)
+    # # Flux Mdot file 
+    # Lbs = wind.Lstar[0]
+    # Fbs = Lbs/(4*pi*wind.r[0]**2)
 
-    filename = path + 'Flux_Mdot.txt'
-    if not os.path.exists(filename):
-        f = open(filename,'w+')
-        f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
-            'logMdot' , 'Fbs' , 'Lbs'))
-    else:
-        f = open(filename,'a')
+    # filename = path + 'Flux_Mdot.txt'
+    # if not os.path.exists(filename):
+    #     f = open(filename,'w+')
+    #     f.write('{:<7s} \t {:<11s} \t {:<11s}\n'.format(
+    #         'logMdot' , 'Fbs' , 'Lbs'))
+    # else:
+    #     f = open(filename,'a')
 
-    f.write('{:<7.2f} \t {:<10e} \t {:<10e}\n'.format(
-            logMdot,Fbs,Lbs))
+    # f.write('{:<7.2f} \t {:<10e} \t {:<10e}\n'.format(
+    #         logMdot,Fbs,Lbs))
                 
 
 
 def read_from_file(logMdot,specific_file=None):
 
-    '''outputs arrays : R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus and sonic point rs. '''
+    '''outputs arrays from save file and rs '''
 
     if specific_file != None:
         filename = specific_file
     else:
         dirname = get_name()
         path = 'results/' + dirname + '/data/'
-        filename = path + str(logMdot) + '.txt'
+        filename = path + ('%.2f'%logMdot) + '.txt'
 
-    def append_vars(line,varz,cols): # take line of file and append its values to variable lists 
+    def append_vars(line,varz): 
         l=line.split()
-        for var,col in zip(varz,cols):
+        for col,var in enumerate(varz):
             var.append(float(l[col]))
+        
 
-    # old version (no tau)
-    R, u, cs, rho, T, P, phi, L, Lstar, E, taus, lam = [[] for i in range (12)]
-    with open(filename,'r') as f:
+    r,T,rho,P,u,cs,phi,L,Lstar,taus,lam = [[] for i in range(11)]
+    varz = [r,T,rho,P,u,cs,phi,L,Lstar,taus,lam]
+    with open(filename, 'r') as f:
         next(f)
-        for line in f: 
-            append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, taus, lam],[i for i in range(12)])
-            if line.split()[-1]=='point': rs = float(line.split()[0])
+        for line in f:
+            if load_params()['FLD'] == True:
+                append_vars(line, varz)
+            else:
+                append_vars(line, varz)
+            
+            if line.split()[-1] == 'point': 
+                rs = eval(line.split()[0])
 
-    return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(taus),array(lam),rs
-    
-    # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,taus,lam,rs
+    r,T,rho,P,u,cs,phi,L,Lstar,taus,lam = (np.array(var) for var in varz)
 
-
-    # R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus, lam = [[] for i in range (13)]
-    # with open(filename,'r') as f:
-    #     next(f)
-    #     for line in f: 
-    #         append_vars(line,[R, u, cs, rho, T, P, phi, L, Lstar, E, tau, taus, lam],[i for i in range(12)])
-    #         if line.split()[-1]=='point': rs = float(line.split()[0])
-
-    # return array(R),array(u),array(cs),array(rho),array(T),array(P),array(phi),array(L),array(Lstar),array(E),array(tau),array(taus),array(lam),rs
-    # # for copy-pasting : R,u,cs,rho,T,P,phi,L,Lstar,E,tau,taus,lam,rs
+    # Return as wind tuple object
+    if load_params()['FLD'] == True:
+        from wind_GR_FLD import Wind
+        return Wind(rs, r, T, rho, u, phi, Lstar, L, P, cs, taus, lam)
+    else:
+        from wind_GR import Wind
+        return Wind(rs, r, T, rho, u, phi, Lstar, L, P, cs, taus)
 
 
 def save_plots(figs,fignames,img):
-
     dirname = get_name()
     path = 'results/' + dirname + '/plots/'
-
     for fig,figname in zip(figs,fignames):
         fig.savefig(path+figname+img)
-
-
+        
 
 def clean_rootfile(warning=1):
 
-    # Find duplicates, and remove all but the latest root (assuming the last one is the correct one)
+    # Find duplicates, and remove all but the latest root 
+    # (assuming the last one is the correct one)
     # Sort from lowest to biggest
-    from numpy import unique,sort,argwhere
 
     logMDOTS,roots = load_roots()
-    new_logMDOTS = sort(unique(logMDOTS))
+    new_logMDOTS = np.sort(np.unique(logMDOTS))
 
     if list(new_logMDOTS) != list(logMDOTS):
 
         v = []
         for x in new_logMDOTS:
-            duplicates = argwhere(logMDOTS==x)
+            duplicates = np.argwhere(logMDOTS==x)
             v.append(duplicates[-1][0]) # keeping the last one
 
         new_roots = []
@@ -232,12 +240,14 @@ def save_EdotTsrel(logMDOT, Edotvals, TsvalsA, TsvalsB):
     filepath = path + '/EdotTsrel_' + str(logMDOT) + '.txt'
     if not os.path.exists(filepath):
         f = open(filepath, 'w+')
-        f.write('{:<12s} \t {:<12s} \t {:<12s}\n'.format('Edot/LEdd', 'log10(TsA)', 'log10(TsB)'))
+        f.write('{:<12s} \t {:<12s} \t {:<12s}\n'.format(
+                'Edot/LEdd', 'log10(TsA)', 'log10(TsB)'))
     else:
         f = open(filepath, 'a')
 
     for edot, tsa, tsb in zip(Edotvals, TsvalsA, TsvalsB):
-        f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(edot, tsa, tsb))
+        f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(
+                edot, tsa, tsb))
 
 def load_EdotTsrel(logMDOT):
 
@@ -259,7 +269,8 @@ def load_EdotTsrel(logMDOT):
 
 def clean_EdotTsrelfile(logMDOT,warning=1):
 
-    # Find duplicates, and remove all but the latest root (assuming the last one is the correct one)
+    # Find duplicates, and remove all but the latest root 
+    # (assuming the last one is the correct one)
     # Sort from lowest to biggest
     from numpy import unique,sort,argwhere
 
@@ -283,7 +294,7 @@ def clean_EdotTsrelfile(logMDOT,warning=1):
         else:
             o = 1
         if o:
-            filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMDOT) + '.txt'
+            filepath = 'roots/FLD/'+get_name()+'/EdotTsrel_'+str(logMDOT)+'.txt'
             os.remove(filepath)
 
             save_EdotTsrel(logMDOT,new_Edotvals,new_TsvalsA,new_TsvalsB)

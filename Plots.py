@@ -13,13 +13,13 @@ mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
 mpl.rcParams.update({'font.size': 15})
 
 import physics
-from IO import *
+import IO
 
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 
 # Parameters
-M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = load_params()
+M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
 eos = physics.EOS(comp)
 
 if FLD:
@@ -35,15 +35,14 @@ LEdd = 4*pi*c*GM/eos.kappa0
 g = GM/(RNS*1e5)**2
 
 # Make directories for data and plots
-make_directories()
+IO.make_directories()
 
 # Import Winds
-clean_rootfile()
-logMDOTS,roots = load_roots()
+IO.clean_rootfile()
+logMDOTS,roots = IO.load_roots()
 
 # Textfile save (usefile=1 to load data from file instead of computing)
-save=1
-usefile=0
+usefile=1
 
 
 ########## PLOTS ###########
@@ -106,12 +105,11 @@ for logMdot, root in zip(logMDOTS, roots):
     Mdot, verbose = 10**logMdot, 0
 
     if usefile:
-        pass
-    
+        w = IO.read_from_file(logMdot)
     else:
         w = MakeWind(root, logMdot, mode='wind',Verbose=1)
         if save:
-            write_to_file(logMdot, w)
+            IO.write_to_file(logMdot, w)
 
     Lbs.append(w.Lstar[0])
 
@@ -125,10 +123,16 @@ for logMdot, root in zip(logMDOTS, roots):
 
         def myloglogplot(ax,x,y):
                 ax.loglog(x , y, color=c, lw=0.8,  label=('%.2f' % (log10(Mdot))), linestyle = ls)
+
         def draw_sonicpoint(ax,x,y):
                 sonic = list(w.r).index(w.rs)
                 ax.loglog([x[sonic]] , [y[sonic]], marker='.', color='k')
-        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),(ax2,ax3,ax4,ax5,ax7,ax8) , (w.r,w.rho,w.r,w.r,w.rho,w.rho) , (w.T,w.T,w.u,w.P,eos.kappa(w.rho,w.T),w.tau)):
+
+        for fig,ax,x,y in zip((fig2,fig3,fig4,fig5,fig7,fig8),
+                                (ax2,ax3,ax4,ax5,ax7,ax8), 
+                                (w.r,w.rho,w.r,w.r,w.rho,w.rho), 
+                                (w.T,w.T,w.u,w.P,eos.kappa(w.rho,w.T),w.taus)):
+
                 myloglogplot(ax,x,y)
                 if i%2==0:draw_sonicpoint(ax,x,y)
                 beautify(fig,ax)
@@ -138,8 +142,8 @@ for logMdot, root in zip(logMDOTS, roots):
 for ax in (ax1,ax2,ax3,ax4,ax5,ax7,ax8):
         ax.legend(title=r'log $\dot{M}$ (g/s)', loc='best')
 
-# Additionnal plots
 
+# Additionnal plots
 Fbs = array(Lbs)/(4*pi*(RNS*1e5)**2)  # redshifted base flux
 fig6, ax6 = plt.subplots(1, 1)
 ax6.set_xlabel(r'$F_{b,\infty}$ (10$^{25}$ erg s$^{-1}$ cm$^{-2}$)')
@@ -149,7 +153,11 @@ beautify(fig6,ax6)
 
 
 if save: 
-    save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],['Luminosity','Temperature1','Temperature2','Velocity','Pressure','Flux_Mdot','Opacity','Optical_depth'],img)
+    IO.save_plots([fig1,fig2,fig3,fig4,fig5,fig6,fig7,fig8],
+                    ['Luminosity','Temperature1','Temperature2','Velocity',
+                    'Pressure','Flux_Mdot','Opacity','Optical_depth'],
+                    img)
+
     print('Plots saved')
 else:
     plt.show()
