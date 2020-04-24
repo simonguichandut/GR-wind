@@ -15,7 +15,7 @@ class EOS:
 
         self.comp = comp
     
-        # One element
+        # Homogeneous
         if self.comp == 'He':
             self.X = 0
             self.Z = 2
@@ -31,7 +31,7 @@ class EOS:
             self.Z = 28
             self.mu_I = 56
 
-        # Mixtures
+        # Heterogeneous
         else:
             if self.comp.lower() == 'solar':
                 self.X, self.Y, self.Z = 0.7, 0.28, 0.02            # http://www.astro.wisc.edu/~townsend/resource/teaching/astro-310-F08/21-eos.pdf

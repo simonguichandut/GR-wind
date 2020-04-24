@@ -118,6 +118,7 @@ def write_to_file(logMdot,wind):
 
             f.write('\n')
 
+    print('Wind data saved at: ',filename)
 
     # # Flux Mdot file 
     # Lbs = wind.Lstar[0]
@@ -216,7 +217,7 @@ def clean_rootfile(warning=1):
             for x,y in zip(new_logMDOTS,new_roots): 
                 save_root(x,y)
             
-
+            
 # def pickle_save(name):
     
 #     # Save all arrays into pickle file
@@ -229,7 +230,7 @@ def clean_rootfile(warning=1):
 #         os.mkdir('pickle/')
 
 
-def save_EdotTsrel(logMDOT, Edotvals, TsvalsA, TsvalsB):
+def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB):
 
     name = get_name()
     path = 'roots/FLD/' + name
@@ -237,7 +238,7 @@ def save_EdotTsrel(logMDOT, Edotvals, TsvalsA, TsvalsB):
     if not os.path.exists(path):
         os.mkdir(path)
 
-    filepath = path + '/EdotTsrel_' + str(logMDOT) + '.txt'
+    filepath = path + '/EdotTsrel_' + ('%.2f'%logMdot) + '.txt'
     if not os.path.exists(filepath):
         f = open(filepath, 'w+')
         f.write('{:<12s} \t {:<12s} \t {:<12s}\n'.format(
@@ -249,9 +250,10 @@ def save_EdotTsrel(logMDOT, Edotvals, TsvalsA, TsvalsB):
         f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(
                 edot, tsa, tsb))
 
-def load_EdotTsrel(logMDOT):
+def load_EdotTsrel(logMdot):
 
-    filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMDOT) + '.txt'
+    filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + ('%.2f'%logMdot) + '.txt'
+    # filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMdot) + '.txt'
     if not os.path.exists(filepath):
         return False,
 

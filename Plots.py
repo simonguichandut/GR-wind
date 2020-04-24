@@ -19,7 +19,7 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 
 # Parameters
-M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params()
+M, RNS, y_inner, tau_out, comp, EOS_type, FLD, mode, save, img = IO.load_params(as_dict=False)
 eos = physics.EOS(comp)
 
 if FLD:
@@ -40,10 +40,6 @@ IO.make_directories()
 # Import Winds
 IO.clean_rootfile()
 logMDOTS,roots = IO.load_roots()
-
-# Textfile save (usefile=1 to load data from file instead of computing)
-usefile=1
-
 
 ########## PLOTS ###########
 def set_style():
@@ -104,12 +100,12 @@ for logMdot, root in zip(logMDOTS, roots):
     global Mdot, verbose
     Mdot, verbose = 10**logMdot, 0
 
-    if usefile:
+    # Load data file. If doesn't exist yet, create it
+    try:
         w = IO.read_from_file(logMdot)
-    else:
+    except:
         w = MakeWind(root, logMdot, mode='wind',Verbose=1)
-        if save:
-            IO.write_to_file(logMdot, w)
+        IO.write_to_file(logMdot, w)
 
     Lbs.append(w.Lstar[0])
 

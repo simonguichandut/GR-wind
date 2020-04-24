@@ -168,13 +168,24 @@ def rSonic(Ts):
     rkeep1, rkeep2 = 0.0, 0.0
     npoints = 50
     vs = np.sqrt(eos.cs2(Ts)/A(Ts))
+
+    # First check if sonic point would be below 2 x gravitational radius
+    # NS radius should never be under 2rg anyway
+    rg = 2*GM/c**2
+    if numerator(2*rg, Ts, vs) > 0.0:
+        raise Exception("Error: sonic point is below gravitational radius")
+    
+    # Check if it's below RNS
+    if numerator(RNS*1e5, Ts, vs) > 0.0:
+        if verbose: print("Warning : sonic point below RNS")
+
     while rkeep1 == 0 or rkeep2 == 0:
-        logr = np.linspace(6, 9, npoints)
+        logr = np.linspace(np.log10(2*rg), 9, npoints)
         for r in 10**logr:
             try:
                 foo = numerator(r, Ts, vs)
             except Exception:
-                #print('Broke causality (F>cE) when trying sonic pt at r=%.3e'%r)
+                print('Broke causality (F>cE) when trying sonic pt at r=%.3e'%r)
                 pass
             else:
                 if foo < 0.0:
@@ -184,6 +195,7 @@ def rSonic(Ts):
         
         npoints += 10
     # print('sonic: rkeep1 = %.3e \t rkeep2 = %.3e'%(rkeep1,rkeep2))
+    # global rs
     rs = brentq(numerator, rkeep1, rkeep2, args=(Ts, vs), maxiter=100000)
     return rs
 
@@ -434,10 +446,11 @@ Wind = namedtuple('Wind',
             ['rs','r','T','rho','u','phi','Lstar','L','P','cs','taus','lam'])  
 
 def setup_globals(params,logMdot,Verbose,return_them=False):
-    global Mdot, Edot, Ts, verbose
+    global Mdot, Edot, Ts, rs, verbose
     Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1],Verbose
+    rs = rSonic(Ts)
     if return_them:
-        return Mdot, Edot, Ts, verbose
+        return Mdot, Edot, Ts, rs, verbose
 
 
 def OuterBisection(rend=1e9,tol=1e-5):
@@ -615,7 +628,6 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
                 %(logMdot,np.log10(Ts),Edot/LEdd))
 
     # Start by finding the sonic point
-    global rs
     rs = rSonic(Ts)
     
     if verbose:
@@ -638,6 +650,7 @@ def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False)
         print('root:\t Ts = %.5e \t rs = %.5e'%(Ts,rs))
         print('new:\t  Ts = %.5e \t rs = %.5e'%(Tsnew,rsnew))
         print('Judge if this is a problem or not')
+        rs = rsnew
 
         # First inner integration
         r95 = 0.95*rs
