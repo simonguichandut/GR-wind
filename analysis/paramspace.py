@@ -101,22 +101,43 @@ def plot_paramspace():
 
     logMdots,roots = IO.load_roots()
 
+    colors = ['r', 'b', 'g', 'k', 'm']
+    i = 0
     
-    for logMdot in logMdots:
+    for logMdot in logMdots[::-1]:
 
-        if logMdot in (17.75,18,18.25,18.5,18.75,19):
+        if logMdot in np.round(np.arange(17,19.1,0.2),2):
+
+            c = colors[int(np.floor(i/2)-1)]
+            ls = '-' if i%2==0 else '--'
 
             # Edot_Ts rel to integrate to infinity
             _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(logMdot)
-            ax.plot(Edotvals,TsvalsA,'.-',label=str(logMdot))
+            ax.plot(Edotvals,TsvalsA,ls=ls,color=c,label=str(logMdot))
 
             # Root
             root = roots[logMdots.index(logMdot)]
+            ax.plot(root[0],root[1],'o',mec=c,mfc=c)
 
-    ax.legend()
+            # rs=RNS line
+            x,y = get_RNSline(logMdot)
+            ax.plot(x,y,':',color=c)
 
+            i += 1
+
+#    # add EdotTs lines for Mdots that don't have roots
+#    _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(17.3)
+#    l = ax.plot(Edotvals,TsvalsA,'-',label='17.3')
+#    x,y = get_RNSline(17.3)
+#    ax.plot(x,y,':',color=l[0].get_color())
+
+    ax.legend(title=r'log$\dot{M}$')
+    ax.set_xlabel(r'$\dot{E}/L_{Edd}$',fontsize=14)
+    ax.set_ylabel(r'log$T_s$',fontsize=14)
+    print('showing plot')
     plt.show()
 
+plot_paramspace()
 
 
 

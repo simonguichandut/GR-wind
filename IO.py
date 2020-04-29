@@ -41,7 +41,7 @@ def get_name():
     return name
 
 
-def save_root(logMDOT,root):
+def save_root(logMdot,root):
 
     filename = get_name()
     path = 'roots/roots_' + filename + '.txt'
@@ -54,7 +54,7 @@ def save_root(logMDOT,root):
         f = open(path,'a')
 
     f.write('{:<7.2f} \t {:<11.8f} \t {:<11.8f}\n'.format(
-            logMDOT,root[0],root[1]))
+            logMdot,root[0],root[1]))
 
 
 def load_roots():
@@ -66,15 +66,15 @@ def load_roots():
         raise TypeError('Root file does not exist')
 
     else:
-        logMDOTS,roots = [],[]
+        logMdotS,roots = [],[]
         with open(path, 'r') as f:
             next(f)
             for line in f:
                 stuff = line.split()
-                logMDOTS.append(float(stuff[0]))
+                logMdotS.append(float(stuff[0]))
                 roots.append([float(stuff[1]), float(stuff[2])])
 
-        return logMDOTS,roots
+        return logMdotS,roots
 
 
 def make_directories():
@@ -191,14 +191,14 @@ def clean_rootfile(warning=1):
     # (assuming the last one is the correct one)
     # Sort from lowest to biggest
 
-    logMDOTS,roots = load_roots()
-    new_logMDOTS = np.sort(np.unique(logMDOTS))
+    logMdotS,roots = load_roots()
+    new_logMdotS = np.sort(np.unique(logMdotS))
 
-    if list(new_logMDOTS) != list(logMDOTS):
+    if list(new_logMdotS) != list(logMdotS):
 
         v = []
-        for x in new_logMDOTS:
-            duplicates = np.argwhere(logMDOTS==x)
+        for x in new_logMdotS:
+            duplicates = np.argwhere(logMdotS==x)
             v.append(duplicates[-1][0]) # keeping the last one
 
         new_roots = []
@@ -214,7 +214,7 @@ def clean_rootfile(warning=1):
             path = 'roots/roots_' + filename + '.txt'
             os.remove(path)
 
-            for x,y in zip(new_logMDOTS,new_roots): 
+            for x,y in zip(new_logMdotS,new_roots): 
                 save_root(x,y)
             
             
@@ -224,7 +224,7 @@ def clean_rootfile(warning=1):
 
 #     # Import Winds
 #     clean_rootfile()
-#     logMDOTS,roots = load_roots()
+#     logMdotS,roots = load_roots()
 
 #     if not os.path.exists('pickle/'):
 #         os.mkdir('pickle/')
@@ -269,21 +269,20 @@ def load_EdotTsrel(logMdot):
         return True,Edotvals,TsvalsA,TsvalsB
 
 
-def clean_EdotTsrelfile(logMDOT,warning=1):
+def clean_EdotTsrelfile(logMdot,warning=1):
 
     # Find duplicates, and remove all but the latest root 
     # (assuming the last one is the correct one)
     # Sort from lowest to biggest
-    from numpy import unique,sort,argwhere
 
-    _,Edotvals,TsvalsA,TsvalsB = load_EdotTsrel(logMDOT)
-    new_Edotvals = sort(unique(Edotvals))
+    _,Edotvals,TsvalsA,TsvalsB = load_EdotTsrel(logMdot)
+    new_Edotvals = np.sort(np.unique(Edotvals))
 
     if list(new_Edotvals) != list(Edotvals):
 
         v = []
         for x in new_Edotvals:
-            duplicates = argwhere(Edotvals==x)
+            duplicates = np.argwhere(Edotvals==x)
             v.append(duplicates[-1][0]) # keeping the last one
 
         new_TsvalsA, new_TsvalsB = [],[]
@@ -296,7 +295,7 @@ def clean_EdotTsrelfile(logMDOT,warning=1):
         else:
             o = 1
         if o:
-            filepath = 'roots/FLD/'+get_name()+'/EdotTsrel_'+str(logMDOT)+'.txt'
+            filepath = 'roots/FLD/'+get_name()+'/EdotTsrel_'+('%.2f'%logMdot)+'.txt'
             os.remove(filepath)
 
-            save_EdotTsrel(logMDOT,new_Edotvals,new_TsvalsA,new_TsvalsB)
+            save_EdotTsrel(logMdot,new_Edotvals,new_TsvalsA,new_TsvalsB)

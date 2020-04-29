@@ -40,22 +40,23 @@ def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner s
 
 
 
-def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
+def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0,Edotmin=1.01,Edotmax=1.05,npts=15):
 
     # find the value of Ts that allow a solution to go to inf (to tol precision), for each value of Edot
 
     if Verbose: print('\nLOGMDOT = %.2f\n'%logMdot)
 
-    Edotvals = np.linspace(1.01,1.05,15)
+    Edotvals = np.linspace(Edotmin,Edotmax,npts)
     Tsvals = []
     a,b = 6.1,8
+    cont = True
     
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.3f'%Edot_LEdd)
+        print('\nFinding Ts for Edot/LEdd = %.4f'%Edot_LEdd)
 
         logTsvals = np.linspace(a,b,10)
 
-        while abs(b-a)>tol:
+        while abs(b-a)>tol and cont:
             print('%.6f    %.6f'%(a,b))
 
             for logTs in logTsvals[1:]:
@@ -67,6 +68,8 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
                 except Exception as E:
                     print(E)
                     print('Exiting...')
+                    cont = False
+                    break
 
                 else:
                     if res.status==1:
@@ -82,6 +85,9 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
         # Take final sonic point temperature to be bottom value (the one that leads to Mach 1.  We know the real value is in between a and a+tol)
         # Tsvals.append(a)
 
+        if cont==False:
+            break
+
         if a==b:
             print('border values equal (did not hit rs<RNS, maybe allow higher Ts). Exiting')
             break
@@ -91,6 +97,8 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0):
 
         a,b = a,8  # next Edot, Ts will certainly be higher than this one
         print('ok'.ljust(20))
+
+    IO.clean_EdotTsrelfile(logMdot,warning=0)
 
 
 
@@ -104,11 +112,18 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
     rel = IO.load_EdotTsrel(logMdot)
     if rel[0] is False:
         print('Edot-Ts relation file does not exist, creating..')
-        get_TsEdotrel(logMdot,Verbose=Verbose)
+
+        if logMdot < 18.0:
+            # At low Mdots (~<18, high Edots go to high Ts quickly, hitting
+            # the rs = RNS line and causing problems in rootfinding)
+            get_TsEdotrel(logMdot,Verbose=Verbose,Edotmax=1.03)
+        else:
+            get_TsEdotrel(logMdot,Verbose=Verbose)
+
         rel = IO.load_EdotTsrel(logMdot)
         print('\nDone!')
 
-    IO.clean_EdotTsrelfile(logMdot)
+    
     if Verbose: print('Loaded Edot-Ts relation from file')
     _,Edotvals,TsvalsA,TsvalsB = rel
 
@@ -122,10 +137,11 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
                 print('Problem with EdotTsrel file at Edot/LEdd=%.3f ,logTs=%.3f'%(Edotvals[i],TsvalsA[i]))
                 print(sola.message)
                 print(solb.message)
+                print('Going to try refining the EdotTsrel file')
+                get_TsEdotrel(logMdot,Edotmin=Edotvals[-2],Edotmax=Edotvals[-1]+0.01,npts=5)
+                print('\n should re-run rootfinder now')
                 sys.exit()
         print(' EdotTsrel file ok')
-
-
 
     # Now do a 1D search on the interpolated line based on the inner BC error
     rel_spline = IUS(Edotvals,TsvalsA)
@@ -148,6 +164,10 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
     erra = Err(Edotvals[0])
     errb = Err(Edotvals[-1])
     if erra*errb > 0: #same sign
+        if erra<0:
+            print('\nOnly negative errors (rb<RNS)') # need smaller Ts
+        else:
+            print('\nOnly positive errors (rb>RNS)') # need higher Ts
         raise Exception('No root in the interval')
 
     else:
@@ -182,9 +202,10 @@ def driver(logmdots,usefile=1):
             roots.append(root)
             success.append(logMDOT)
             save_root(logMDOT,root)
-        except:
+        except Exception as e:
             problems.append(logMDOT)
-            print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose...\n\n')
+            print('\n',e)
+            print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
             try : RootFinder(logMDOT,checkrel=True,Verbose=True)
             except: pass
     
