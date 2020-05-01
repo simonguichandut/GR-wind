@@ -106,7 +106,7 @@ def plot_paramspace():
     
     for logMdot in logMdots[::-1]:
 
-        if logMdot in np.round(np.arange(17,19.1,0.2),2):
+        if logMdot in np.round(np.arange(17,19.1,0.25),2):
 
             c = colors[int(np.floor(i/2)-1)]
             ls = '-' if i%2==0 else '--'
@@ -120,24 +120,28 @@ def plot_paramspace():
             ax.plot(root[0],root[1],'o',mec=c,mfc=c)
 
             # rs=RNS line
-            x,y = get_RNSline(logMdot)
-            ax.plot(x,y,':',color=c)
+            #x,y = get_RNSline(logMdot)
+            #ax.plot(x,y,':',color=c)
 
             i += 1
 
-#    # add EdotTs lines for Mdots that don't have roots
-#    _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(17.3)
-#    l = ax.plot(Edotvals,TsvalsA,'-',label='17.3')
-#    x,y = get_RNSline(17.3)
-#    ax.plot(x,y,':',color=l[0].get_color())
+    # add EdotTs lines for Mdots that don't have roots
+    # _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(17.2)
+    # l = ax.plot(Edotvals,TsvalsA,'-',label='17.2')
+    # x,y = get_RNSline(17.2)
+    # ax.plot(x,y,':',color=l[0].get_color())
 
     ax.legend(title=r'log$\dot{M}$')
     ax.set_xlabel(r'$\dot{E}/L_{Edd}$',fontsize=14)
     ax.set_ylabel(r'log$T_s$',fontsize=14)
-    print('showing plot')
-    plt.show()
+    # print('showing plot')
+    # plt.show()
 
-plot_paramspace()
+    return fig
+
+fig = plot_paramspace()
+fig.savefig('analysis/paramspace.png')
+print('saved figure')
 
 
 

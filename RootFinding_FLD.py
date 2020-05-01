@@ -47,14 +47,17 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0,Edotmin=1.01,Edotmax=1.05,npts=15):
     if Verbose: print('\nLOGMDOT = %.2f\n'%logMdot)
 
     Edotvals = np.linspace(Edotmin,Edotmax,npts)
+    Edotvals = np.round(Edotvals,8)
+    
     Tsvals = []
     a,b = 6.1,8
     cont = True
     
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.4f'%Edot_LEdd)
+        print('\nFinding Ts for Edot/LEdd = %.6f'%Edot_LEdd)
 
         logTsvals = np.linspace(a,b,10)
+        logTsvals = np.round(logTsvals,8)
 
         while abs(b-a)>tol and cont:
             print('%.6f    %.6f'%(a,b))
@@ -137,10 +140,12 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
                 print('Problem with EdotTsrel file at Edot/LEdd=%.3f ,logTs=%.3f'%(Edotvals[i],TsvalsA[i]))
                 print(sola.message)
                 print(solb.message)
-                print('Going to try refining the EdotTsrel file')
-                get_TsEdotrel(logMdot,Edotmin=Edotvals[-2],Edotmax=Edotvals[-1]+0.01,npts=5)
-                print('\n should re-run rootfinder now')
-                sys.exit()
+
+                # below is commented out because it doesnt really fit with the purpose of checkrel
+                # print('Going to try refining the EdotTsrel file')
+                # get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+0.0001,Edotmax=Edotvals[-1]+0.01,npts=5)
+                # print('\n should re-run rootfinder now')
+                # sys.exit()
         print(' EdotTsrel file ok')
 
     # Now do a 1D search on the interpolated line based on the inner BC error
@@ -153,10 +158,6 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         print("Looking for root... Edot/LEdd=%.6f \t logTs=%.6f \t Error=%.6f"%(Edot_LEdd,logTs,E),end="\r")
         return E
 
-
-    # Testing
-    # print(Err(1.025))
-    # print(Err((Edotvals[0]+Edotvals[-1])/2))
 
     if Verbose: print('Searching root on Edot,Ts relation based on inner boundary error')
 

@@ -9,7 +9,7 @@ def run_wind(logMdot):
 
     logMdots,roots = IO.load_roots()
     root = roots[logMdots.index(logMdot)]
-    w = MakeWind(root, logMdot, mode='wind',Verbose=1)
+    w = MakeWind(root, logMdot, mode='wind',Verbose=0)
     IO.write_to_file(logMdot, w)
 
 import sys
