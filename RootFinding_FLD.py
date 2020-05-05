@@ -54,17 +54,17 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0,Edotmin=1.01,Edotmax=1.05,npts=15):
     cont = True
     
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.6f'%Edot_LEdd)
+        print('\nFinding Ts for Edot/LEdd = %.8f'%Edot_LEdd)
 
         logTsvals = np.linspace(a,b,10)
         logTsvals = np.round(logTsvals,8)
 
         while abs(b-a)>tol and cont:
-            print('%.6f    %.6f'%(a,b))
+            print('%.8f    %.8f'%(a,b))
 
             for logTs in logTsvals[1:]:
 
-                print('Current: %.6f'%logTs, end="\r")
+                print('Current: %.8f'%logTs, end="\r")
 
                 try:
                     res = run_outer(logMdot,Edot_LEdd,logTs,Verbose)
@@ -141,11 +141,6 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
                 print(sola.message)
                 print(solb.message)
 
-                # below is commented out because it doesnt really fit with the purpose of checkrel
-                # print('Going to try refining the EdotTsrel file')
-                # get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+0.0001,Edotmax=Edotvals[-1]+0.01,npts=5)
-                # print('\n should re-run rootfinder now')
-                # sys.exit()
         print(' EdotTsrel file ok')
 
     # Now do a 1D search on the interpolated line based on the inner BC error
@@ -161,10 +156,14 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
 
     if Verbose: print('Searching root on Edot,Ts relation based on inner boundary error')
 
-    # Check if root is present in the interval
     erra = Err(Edotvals[0])
-    errb = Err(Edotvals[-1])
-    if erra*errb > 0: #same sign
+    for Edot in Edotvals[:0:-1]: # cycle through the values in reverse order until the 2nd one
+        errb = Err(Edot)
+        if erra*errb < 0: # different sign, means a root is in the interval
+            print('\nroot present')
+            break
+
+    if erra*errb > 0: # same sign (we'll enter this if we didn't break last loop)
         if erra<0:
             print('\nOnly negative errors (rb<RNS)') # need smaller Ts
         else:
@@ -172,13 +171,46 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         raise Exception('No root in the interval')
 
     else:
-        x = brentq(Err,Edotvals[0],Edotvals[-1])
+        x = brentq(Err,Edotvals[0],Edot) # Edot is the last value before break above
         root = [x,rel_spline(x).item(0)]
         print('Found root : ',root,'. Error on NS radius: ',Err(x))
         return root
 
 # RootFinder(18,checkrel=True)
 
+
+
+def ImproveRoot(logMdot, eps=0.001):
+
+    ''' Rootfinding with the inner b.cond is done on a spline interpolation of 
+    the Edot-Ts relation. When that root is obtained, it's not exact because of 
+    interpolation errors, meaning that root can't be carried out to infinity. 
+    In the main code (wind_GR_FLD), a new Ts bound is found to do the bisection,
+    which changes the sonic point. At low mdot (or in general when the Edot-Ts)
+    relation doesn't have enough points, the change in sonic point can be 
+    significant enough that the base (r(y8)) is not close at all to RNS anymore.
+    The purpose of this function is to resolve the Edot-Ts relation around the 
+    root found initially and then re-do the rootfinding.
+    '''
+
+    logMdots,roots = IO.load_roots()
+    if logMdot not in logMdots:
+        sys.exit("root doesn't exist yet")
+    root = roots[logMdots.index(logMdot)]
+
+    # Search between the two Edot values that bound the root
+    _,Edots,_,_ = IO.load_EdotTsrel(logMdot)
+    i = np.argwhere(np.array(Edots)>root[0])[0][0]
+    diff = Edots[i]-Edots[i-1]
+    bound1 = Edots[i-1] + 0.1*diff
+    bound2 = Edots[i] - 0.1*diff
+
+    get_TsEdotrel(logMdot,Edotmin=bound1,Edotmax=bound2,npts=8)
+    #get_TsEdotrel(logMdot,Edotmin=root[0]-eps,Edotmax=root[0]+eps,npts=8)
+    IO.clean_EdotTsrelfile(logMdot,warning=0)
+    root = RootFinder(logMdot,checkrel=False)
+    IO.save_root(logMdot,root)
+    #IO.clean_rootfile()
 
 
 
@@ -215,11 +247,8 @@ def driver(logmdots,usefile=1):
     print('Found roots for these values :',success)
     print('There were problems for these values :',problems)
 
-#    if len(success)>=1 and input('\nClean (overwrite) updated root file? (0 or 1) '):
-#        clean_rootfile(warning=0)
-    clean_rootfile(warning=0) # so it does it even if I'm not there
-    print('\n\n')
-    
+    if len(success)>=1 and input('\nClean (overwrite) updated root file? (0 or 1) '):
+       clean_rootfile(warning=0)
     
 
 # Command line call

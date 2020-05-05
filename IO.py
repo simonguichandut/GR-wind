@@ -299,3 +299,45 @@ def clean_EdotTsrelfile(logMdot,warning=1):
             os.remove(filepath)
 
             save_EdotTsrel(logMdot,new_Edotvals,new_TsvalsA,new_TsvalsB)
+
+
+
+
+
+def info(logMdot, returnit=False):
+    """ Print (or returns) True/False for if root exists, if EdotTsrel file exists
+    (if FLD==True) and if datafile exists"""
+
+    # Root
+    logMdots,_ = load_roots()
+    root_exists = (logMdot in logMdots)
+
+    # EdotTs rel file
+    if load_params()["FLD"] == True:
+        try:
+            load_EdotTsrel(logMdot)
+        except:
+            EdotTsrel_exists = False
+        else:
+            EdotTsrel_exists = True
+    else:
+        EdotTsrel_exists = "(not FLD)"
+
+    # Datafile
+    try:
+        read_from_file(logMdot)
+    except:
+        datafile_exists = False
+    else:
+        datafile_exists = True
+
+
+
+    if returnit:
+        return {"root_exists":root_exists,
+                "EdotTsrel_exists":EdotTsrel_exists,
+                "datafile_exists":datafile_exists}
+    else:
+        print('Root exists \t\t: ',root_exists)
+        print('EdotTsrel exists \t: ',EdotTsrel_exists)
+        print('Data file exists \t: ',datafile_exists)
