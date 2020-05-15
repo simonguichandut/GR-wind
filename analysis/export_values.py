@@ -2,9 +2,10 @@ import sys
 sys.path.append(".")
 sys.path.append("./analysis")
 
-from numpy import array,pi
+import numpy as np
 import IO
 from timescales import *
+from photosphere import Rphot_tau_twothirds
 
 
 def export(target = "."):
@@ -16,38 +17,66 @@ def export(target = "."):
 
     if target[-1]!='/': target += '/'
     logMDOTS,_ = IO.load_roots()
-    M,R,y_inner,tau_out,comp,EOS_type,FLD,mode,save,img = IO.load_params()
+    params  = IO.load_params()
+    filename = target+'wind_values_'+IO.get_name()+'.txt'
 
     from scipy.interpolate import interp1d
     from scipy.integrate import quad
 
-    with open(target+'wind_values_'+IO.get_name()+'.txt','w') as f:
+    with open(filename,'w') as f:
 
         f.write(('{:<11s} \t '*16 +'{:<11s}\n').format(
             'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)'))
 
 
-        for x in logMDOTS:
-            r,u,cs,rho,T,P,phi,L,Lstar,E,tau,rs = IO.read_from_file(x) 
+        for logMdot in logMDOTS[::-1]:
+            print(logMdot)
+            w = IO.read_from_file(logMdot) 
 
-            tflow,tsound,tsound2,Tau = flowtime(r,u),soundtime(r,u),soundtime2(r,cs,rs),soundflowtime(r,cs,u,rs)
+            if params['FLD'] == True:
+                rph = Rphot_tau_twothirds(logMdot)
+                iph = np.argwhere(w.r==rph)[0][0]
+            else:
+                rph = w.r[-1]
+                iph = -1
+
+            tflow = flowtime(w.r,w.u,rphot=rph)
+            tsound = soundtime(w.r,w.cs,rphot=rph)
+            tsound2 = soundtime2(w.r,w.cs,w.rs)
+            Tau = soundflowtime(w.r,w.cs,w.u,w.rs,rphot=rph)
 
             # Mass above and below sonic point
-            rhofunc = interp1d(r,rho,kind='cubic')
+            rhofunc = interp1d(w.r,w.rho,kind='cubic')
 
             def mass_in_shell(r): 
-                return 4*pi*rhofunc(r)*r**2
+                return 4*np.pi*rhofunc(r)*r**2
 
-            Min,err1 = quad(mass_in_shell, r[0] , rs, epsrel=1e-5)
-            Mout,err2 = quad(mass_in_shell, rs , r[-1], epsrel=1e-5)
+            Min,err1 = quad(mass_in_shell, w.r[0] , w.rs, epsrel=1e-5)
+            Mout,err2 = quad(mass_in_shell, w.rs , w.r[-1], epsrel=1e-5)
             # print(Min/Mout)
 
-            f.write(('%0.2f \t\t '+'%0.6e \t '*15 + '%0.6e\n')%
-                (x,r[0],T[0],rho[0],P[0],L[0],Lstar[0],r[-1],T[-1],rho[-1],L[-1],Lstar[-1],rs,tflow,tsound,tsound2,Tau))
+            # f.write(('%0.2f \t\t '+'%0.6e \t '*15 + '%0.6e\n')%
+            #     (x,w.r[0],w.T[0],w.rho[0],w.P[0],w.L[0],w.Lstar[0],w.r[-1],T[-1],rho[-1],L[-1],Lstar[-1],rs,tflow,tsound,tsound2,Tau))
 
+
+            # Write base values
+            f.write(('%0.2f \t\t' + '%0.6e \t'*6)%
+                (logMdot,w.r[0],w.T[0],w.rho[0],w.P[0],w.L[0],w.Lstar[0]))
+            
+            # Write photoshere values 
+            f.write(('%0.6e \t'*5)%
+                (rph,w.T[iph],w.rho[iph],w.L[iph],w.Lstar[iph]))
+
+            # sonic point + timescales
+            f.write(('%0.6e \t'*5)%
+                (w.rs,tflow,tsound,tsound2,Tau))
+
+            f.write('\n')
+
+    print('Saved values to : "%s"'%filename)
 
 # Command line call
-if len(sys.argv)>2:
-    export(target = sys.argv[2])
+if len(sys.argv)>=2:
+    export(target = sys.argv[-1])
 else:
     export()

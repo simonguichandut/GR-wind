@@ -45,6 +45,9 @@ def Rphot_trapz(logMdot):
 
     return Rph23,Rph1#,Rph2,Rph3
 
+def Rphot_tau_twothirds(logMdot):
+    return Rphot_trapz(logMdot)[0]
+
 
 def Rphot_interpolate(logMdot):
     # extrapolating rho as a power law from the maximum computed 
@@ -93,6 +96,6 @@ def compare_definitions():
 
     return fig,ax
 
-fig,ax = compare_definitions()
-plt.tight_layout()
-plt.show()
+# fig,ax = compare_definitions()
+# plt.tight_layout()
+# plt.show()

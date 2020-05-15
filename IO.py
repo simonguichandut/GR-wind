@@ -2,9 +2,15 @@
 
 import os
 import numpy as np
-
+import sys
+#sys.path.append(".") 
+## the above is so that the functions in this script work even when imported from somewhere else
+#local_path = os.path.realpath('IO.py')
+#print(local_path)
+#print(sys.argv[0])
+#
 def load_params(as_dict=True):
-    with open('params.txt','r') as f:
+    with open('./params.txt','r') as f:
         next(f)
         M = float(f.readline().split()[1])
         R = float(f.readline().split()[1])
@@ -137,7 +143,7 @@ def write_to_file(logMdot,wind):
                 
 
 
-def read_from_file(logMdot,specific_file=None):
+def read_from_file(logMdot, specific_file=None):
 
     '''outputs arrays from save file and rs '''
 
@@ -162,7 +168,7 @@ def read_from_file(logMdot,specific_file=None):
             if load_params()['FLD'] == True:
                 append_vars(line, varz)
             else:
-                append_vars(line, varz)
+                append_vars(line, varz[:-1])
             
             if line.split()[-1] == 'point': 
                 rs = eval(line.split()[0])
