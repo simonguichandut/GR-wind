@@ -64,7 +64,7 @@ nice_fonts = {
 }
 
 mpl.rcParams.update(nice_fonts)
-from my_plot import set_size
+# from my_plot import set_size
 
 
 def plot_map(logMDOT,img='pdf'):
@@ -72,7 +72,9 @@ def plot_map(logMDOT,img='pdf'):
     filename = 'analysis/errorspaces/save'+str(logMDOT)+'.p'
     [Edotvals,Tsvals,Errors]=pickle.load(open(filename,'rb'))
 
-    fig,(ax1,ax2) = plt.subplots(1,2,figsize=set_size('mnras1col'))    
+    # fig,(ax1,ax2) = plt.subplots(1,2,figsize=set_size('mnras1col'))
+    fig,(ax1,ax2) = plt.subplots(1,2,figsize=(5.95, 3.68))
+       
     fig.subplots_adjust(wspace=0.25)
     ax1.patch.set_color('.25')
     ax2.patch.set_color('.25')
@@ -94,13 +96,14 @@ def plot_map(logMDOT,img='pdf'):
     im2 = ax2.contourf(Edotvals,Tsvals,np.abs(array(Errors[1])),levs,norm=colors.LogNorm(),cmap=cmap)
     fig.colorbar(im1,ax=ax1,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
     fig.colorbar(im2,ax=ax2,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
-    ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r^2\sigma T^4\vert$/$L_{ph}$')
-    ax2.set_title(r'Error 2 : $\vert r_{b}-R_{NS}\vert$/$R_{NS}$')    
+    # ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r_{ph}^2\sigma T_{ph}^4\vert$/$L_{ph}$')
+    ax1.set_title(r'Error 1 : $\vert L-4\pi r^2\sigma T^4\vert$/$L$')
+    ax2.set_title(r'Error 2 : $\vert r_{b}-R\vert$/$R$')    
 
 
     ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
     ax2.set_xlabel(r'$\dot{E}/L_{Edd}$')
-    ax1.set_ylabel(r'log $T_s$ (K)')
+    ax1.set_ylabel(r'log $T_c$ (K)')
 
                 
     ax1.set_xlim([Edotvals[0],Edotvals[-1]])
