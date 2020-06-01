@@ -4,6 +4,7 @@ sys.path.append(".")
 from wind_GR import *
 import IO
 
+import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib
 matplotlib.rcParams.update({
@@ -33,7 +34,7 @@ figsize=(5.95, 3.68) # according to document size
 
 def Make_profiles_plot(lw = 0.8):
 
-    fig,axes = plt.subplots(3,2,figsize=(figsize[0],figsize[1]*3), sharex=True)
+    fig,axes = plt.subplots(3,2,figsize=(figsize[0],figsize[1]*3/2), sharex=True)
     fig.subplots_adjust(hspace=0)
     fig.subplots_adjust(wspace=0.3)
     (ax1,ax2),(ax3,ax4),(ax5,ax6) = axes
@@ -88,8 +89,8 @@ def Make_profiles_plot(lw = 0.8):
     # leg.get_title().set_position((0.1, 1))
     
     # ax1.legend(frameon=False, ncol=4,  bbox_to_anchor=(1e7,1e11), bbox_transform=ax1.transData)
-    ax1.legend(frameon=False, ncol=4,  bbox_to_anchor=(0.85,0.94), bbox_transform=fig.transFigure)
-    ax1.text(0.17,0.91,(r'log$\dot{M}$ (g s$^{-1}$)'),fontsize=9,transform=fig.transFigure,
+    ax1.legend(frameon=False, ncol=4,  bbox_to_anchor=(0.85,0.97), bbox_transform=fig.transFigure)
+    ax1.text(0.18,0.93,(r'log$\dot{M}$ (g s$^{-1}$)'),fontsize=9,transform=fig.transFigure,
             ha='left',va='center')
 
     # for better clarity
@@ -99,4 +100,59 @@ def Make_profiles_plot(lw = 0.8):
 
     fig.savefig('analysis/thesis_plots/wind_profiles.pdf',bbox_inches='tight',format='pdf')
 
-Make_profiles_plot()
+
+def Make_rootsplot():
+
+    fig = plt.figure(figsize=figsize)
+
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(222)
+    ax3 = fig.add_subplot(224,sharex=ax2)
+    fig.subplots_adjust(hspace=0)
+    fig.subplots_adjust(wspace=0.3)
+
+    for ax in (ax1,ax2,ax3):
+        ax.grid(alpha=0.5)
+
+    ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
+    ax3.set_xlabel(r'log$\dot{M}$ (g s$^{-1}$)')
+    ax1.set_ylabel(r'log$T_c$')
+    ax2.set_ylabel(r'$r_c$ (cm)')
+    ax3.set_ylabel(r'$L_b^\infty/L_{Edd}$')
+
+    logMdots,roots = IO.load_roots()
+    Edotvals = [root[0] for root in roots]
+    logTsvals = [root[1] for root in roots]
+
+    ax1.plot(Edotvals,logTsvals,'k-',lw=1)
+    ax1.set_xlim([1.015,1.03])
+    ax1.set_xticks(np.arange(1.015,1.03,0.003))
+
+    Lbinf,rsonic = [],[]
+
+    for i,logMdot in enumerate(logMdots):
+        
+        w = IO.read_from_file(logMdot)
+        Lbinf.append(w.Lstar[0]) # it's not quite Lstar because of the doppler terms but they are very small near the base so it should be ok
+        rsonic.append(w.rs)
+
+        if logMdot in (logMdots[0],logMdots[-1],17.5,18,18.5,18.75):
+
+            ax1.plot([Edotvals[i]],logTsvals[i],'o',mfc='w',mec='k',ms=4)
+
+            if logMdot==18.75:
+                s = (r'log$\dot{M}$='+str(logMdot))
+            else:
+                s = str(logMdot)
+            
+            ax1.text(Edotvals[i]+0.0005,logTsvals[i],s,fontsize=8,transform=ax1.transData,ha='left',va='center')
+
+    ax2.semilogy(logMdots,rsonic,'k-',lw=1)
+    ax3.plot(logMdots,np.array(Lbinf)/LEdd,'k-',lw=1)
+    
+    fig.savefig('analysis/thesis_plots/wind_roots.pdf',bbox_inches='tight',format='pdf')
+
+    # plt.show()
+
+# Make_profiles_plot()
+Make_rootsplot()
