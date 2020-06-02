@@ -67,7 +67,7 @@ mpl.rcParams.update(nice_fonts)
 # from my_plot import set_size
 
 
-def plot_map(logMDOT,img='pdf'):
+def plot_map(logMDOT,img='pdf',xaxis='Edot'):
 
     filename = 'analysis/errorspaces/save'+str(logMDOT)+'.p'
     [Edotvals,Tsvals,Errors]=pickle.load(open(filename,'rb'))
@@ -75,9 +75,23 @@ def plot_map(logMDOT,img='pdf'):
     # fig,(ax1,ax2) = plt.subplots(1,2,figsize=set_size('mnras1col'))
     fig,(ax1,ax2) = plt.subplots(1,2,figsize=(5.95, 3.68))
        
-    fig.subplots_adjust(wspace=0.25)
+    fig.subplots_adjust(wspace=0.3)
     ax1.patch.set_color('.25')
     ax2.patch.set_color('.25')
+
+    # In the roots, Edot (/LEdd) is actually Edot-Mdotc^2!!
+    if xaxis == 'Edot':
+        from wind_GR import c,LEdd
+        Edotvals = (Edotvals*LEdd + 10**logMDOT*c**2)/LEdd
+        ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
+        ax2.set_xlabel(r'$\dot{E}/L_{Edd}$')
+    elif xaxis == 'Edot_minus_Mdotc2':
+        ax1.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
+        ax2.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
+
+
+    ax1.set_ylabel(r'log $T_c$ (K)')
+
 
     # Option 1 
 #     cmap = plt.get_cmap('RdBu') # diverging colormap (white at center)
@@ -99,11 +113,6 @@ def plot_map(logMDOT,img='pdf'):
     # ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r_{ph}^2\sigma T_{ph}^4\vert$/$L_{ph}$')
     ax1.set_title(r'Error 1 : $\vert L-4\pi r^2\sigma T^4\vert$/$L$')
     ax2.set_title(r'Error 2 : $\vert r_{b}-R\vert$/$R$')    
-
-
-    ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
-    ax2.set_xlabel(r'$\dot{E}/L_{Edd}$')
-    ax1.set_ylabel(r'log $T_c$ (K)')
 
                 
     ax1.set_xlim([Edotvals[0],Edotvals[-1]])
@@ -154,7 +163,7 @@ def plot_map(logMDOT,img='pdf'):
     # plt.tight_layout()
     
     filename = str(logMDOT).replace('.','_') # dont want points in filenames
-    fig.savefig('analysis/errorspaces/'+filename+'.'+img)    
+    fig.savefig('analysis/errorspaces/'+filename+'.'+img,bbox_inches='tight',format=img)    
 
 # indivual call
 # get_map(17.75)

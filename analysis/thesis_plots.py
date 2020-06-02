@@ -114,7 +114,7 @@ def Make_rootsplot():
     for ax in (ax1,ax2,ax3):
         ax.grid(alpha=0.5)
 
-    ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
+    ax1.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
     ax3.set_xlabel(r'log$\dot{M}$ (g s$^{-1}$)')
     ax1.set_ylabel(r'log$T_c$')
     ax2.set_ylabel(r'$r_c$ (cm)')
