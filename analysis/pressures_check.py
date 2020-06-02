@@ -7,6 +7,12 @@ from numpy import array
 import pickle    
 import matplotlib.pyplot as plt
 
+# Constants
+kB = 1.380658e-16
+arad = 7.5657e-15
+c = 2.99792458e10
+mp = 1.67e-24
+
 from wind_GR import *
 
 import warnings
@@ -20,7 +26,10 @@ logMDOTS,roots = load_roots()
 z = roots[logMDOTS.index(logMDOT)]
 
 
-R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(z,logMDOT,mode='wind')
+# R, T, Rho, u, Phi, Lstar, L, LEdd_loc, E, P, cs, tau, rs, Edot, Ts = MakeWind(z,logMDOT,mode='wind')
+import IO
+w = IO.read_from_file(logMDOT)
+R,T,Rho,P = w.r,w.T,w.rho,w.P
 
 
 def electronsfull(rho,T):  # From Paczynski (1983) semi-analytic formula : ApJ 267 315
@@ -43,7 +52,7 @@ def electronsfull(rho,T):  # From Paczynski (1983) semi-analytic formula : ApJ 2
 
 pe,Ue,pednr,pedr,ped,pend,Ue2 = electronsfull(Rho,T)
 prad = arad*T**4/3.0 
-pgas = Rho*cs2(T)
+pgas = Rho*eos.cs2(T)
 
 fig,ax = plt.subplots(1,1)
 ax.loglog(R,P,'k',lw=0.6,label='Total')
