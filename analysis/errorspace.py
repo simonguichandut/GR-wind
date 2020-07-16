@@ -83,8 +83,8 @@ def plot_map(logMDOT,img='pdf',xaxis='Edot'):
     if xaxis == 'Edot':
         from wind_GR import c,LEdd
         Edotvals = (Edotvals*LEdd + 10**logMDOT*c**2)/LEdd
-        ax1.set_xlabel(r'$\dot{E}/L_{Edd}$')
-        ax2.set_xlabel(r'$\dot{E}/L_{Edd}$')
+        ax1.set_xlabel(r'$\dot{E}/L_\mathrm{Edd}$')
+        ax2.set_xlabel(r'$\dot{E}/L_\mathrm{Edd}$')
     elif xaxis == 'Edot_minus_Mdotc2':
         ax1.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
         ax2.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
@@ -110,9 +110,9 @@ def plot_map(logMDOT,img='pdf',xaxis='Edot'):
     im2 = ax2.contourf(Edotvals,Tsvals,np.abs(array(Errors[1])),levs,norm=colors.LogNorm(),cmap=cmap)
     fig.colorbar(im1,ax=ax1,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
     fig.colorbar(im2,ax=ax2,ticks=[1e-3, 1e-2, 1e-1, 1e0, 1e1])
-    # ax1.set_title(r'Error 1 : $\vert L_{ph}-4\pi r_{ph}^2\sigma T_{ph}^4\vert$/$L_{ph}$')
-    ax1.set_title(r'Error 1 : $\vert L-4\pi r^2\sigma T^4\vert$/$L$')
-    ax2.set_title(r'Error 2 : $\vert r_{b}-R\vert$/$R$')    
+    # ax1.set_title(r'$\vert L_{ph}-4\pi r_{ph}^2\sigma T_{ph}^4\vert$/$L_{ph}$')
+    ax1.set_title(r'$\vert L-4\pi r^2\sigma T^4\vert$/$L$')
+    ax2.set_title(r'$\vert r_{b}-R\vert$/$R$')    
 
                 
     ax1.set_xlim([Edotvals[0],Edotvals[-1]])
@@ -122,8 +122,8 @@ def plot_map(logMDOT,img='pdf',xaxis='Edot'):
     
     
     # Add scatters for errors
-    cases_left = (r'Mach $\rightarrow 1$',r'$\tau^*_{min}>3$','?','tau^*(r_c)<3')
-    cases_right = ('u=0','Diverging (NaN)','?')
+    cases_left = (r'$\mathcal{M}\rightarrow 1$',r'$\tau^*_{min}>3$','?','tau^*(r_c)<3')
+    cases_right = ('u=0','div','?')
     color_left = ('m','c','w')
     color_right = ('r','g','k')
     legendleft,legendright = False,False
@@ -162,7 +162,7 @@ def plot_map(logMDOT,img='pdf',xaxis='Edot'):
     
     # plt.tight_layout()
     
-    filename = str(logMDOT).replace('.','_') # dont want points in filenames
+    filename = 'errorspace_' + str(logMDOT).replace('.','_') # dont want points in filenames
     fig.savefig('analysis/errorspaces/'+filename+'.'+img,bbox_inches='tight',format=img)    
 
 # indivual call

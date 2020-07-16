@@ -50,7 +50,7 @@ class EOS:
 
     # Opacity
     def kappa(self,rho,T):
-        # return kappa0/(1.0+(T/4.5e8)**0.86)     
+        # return self.kappa0/(1.0+(T/4.5e8)**0.86)     
         return self.kappa0/(1.0+(T/4.5e8)**0.86) + 1e23*self.Z**2/(self.mu_e*self.mu_I)*rho*T**(-7/2)
 
     # Ideal gas sound speed c_s^2

@@ -4,6 +4,10 @@
 
 .vscode/
 
+*.ipynb
+
+*.pyc
+
 misc_plots/
 
 activitylog.txt
@@ -16,7 +20,9 @@ analysis/light_curve/
 
 analysis/envelope/
 
-analysis/misc_plots
+analysis/misc_plots/
+
+analysis/spot_check/
 
 He_grid_with_winds
 
@@ -26,16 +32,16 @@ temp.py
 
 wind_GR_oldnofld.py
 
-wind_values*
-
 foo.py
 
+
+# Specific results
+
 results/Ni*
-
 results/He_IG_*
-
-*.ipynb
-
 results/H_*
+results/He_IGDE_M2.0*
+results/He_IGDE_M1.1*
+results/He_IGDE_M1.4_R10*
+results/He_IGDE_M1.4_R13*
 
-*.pyc

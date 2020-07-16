@@ -449,6 +449,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 
     if verbose: print(result.message)
 
+    flag_u0 = 0
     if result.status == 1 : # A termination event occured
 
         if len(result.t_events[0]) == 1:  # The correct termination event
@@ -470,8 +471,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         
     else:
         if verbose: 
-            print('Pressure condition nor zero velocity reached. \
-                    Something else went wrong\n')
+            print('Pressure condition nor zero velocity reached.')
 
     if returnResult:
         return result

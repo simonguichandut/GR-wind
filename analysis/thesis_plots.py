@@ -37,10 +37,10 @@ c = 2.99792458e10
 mp = 1.67e-24
 
 
-figsize=(5.95, 3.68) # according to document size
+thesis_figsize=(5.95, 3.68) # according to document size
 
 
-def Make_profiles_plot(lw = 0.8):
+def Make_profiles_plot(lw = 0.8,figsize=thesis_figsize):
 
     fig,axes = plt.subplots(3,2,figsize=(figsize[0],figsize[1]*3/2), sharex=True)
     fig.subplots_adjust(hspace=0)
@@ -56,7 +56,7 @@ def Make_profiles_plot(lw = 0.8):
     ax2.set_ylabel(r'$\rho$ (g cm$^{-3}$)')
     ax3.set_ylabel(r'$u/c$')
     ax4.set_ylabel(r'$\Phi$')
-    ax5.set_ylabel(r'$L_\infty/L_{Edd}$')
+    ax5.set_ylabel(r'$L^\infty/L_\mathrm{Edd}$')
     ax6.set_ylabel(r'$\tau^*$')
 
     ax4.axhline(2,color='k',ls=':',lw=0.7)
@@ -109,9 +109,11 @@ def Make_profiles_plot(lw = 0.8):
     ax6.set_ylim(1,10**10.5)
 
     fig.savefig('analysis/thesis_plots/wind_profiles.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_profiles.pdf')
 
 
-def Make_rootsplot():
+
+def Make_rootsplot(figsize=thesis_figsize):
 
     fig = plt.figure(figsize=figsize)
 
@@ -124,11 +126,11 @@ def Make_rootsplot():
     for ax in (ax1,ax2,ax3):
         ax.grid(alpha=0.5)
 
-    ax1.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_{Edd}$')
+    ax1.set_xlabel(r'$(\dot{E}-\dot{M}c^2)/L_\mathrm{Edd}$')
     ax3.set_xlabel(r'log$\dot{M}$ (g s$^{-1}$)')
     ax1.set_ylabel(r'log$T_c$')
     ax2.set_ylabel(r'$r_c$ (cm)')
-    ax3.set_ylabel(r'$L_b^\infty/L_{Edd}$')
+    ax3.set_ylabel(r'$L_b^\infty/L_\mathrm{Edd}$')
 
     logMdots,roots = IO.load_roots()
     Edotvals = [root[0] for root in roots]
@@ -157,15 +159,16 @@ def Make_rootsplot():
             
             ax1.text(Edotvals[i]+0.0005,logTsvals[i],s,fontsize=8,transform=ax1.transData,ha='left',va='center')
 
-    ax2.semilogy(logMdots,rsonic,'k-',lw=1)
-    ax3.plot(logMdots,np.array(Lbinf)/LEdd,'k-',lw=1)
+    ax2.semilogy(logMdots,rsonic,'k.-',lw=1,ms=3)
+    ax3.plot(logMdots,np.array(Lbinf)/LEdd,'k.-',lw=1,ms=3)
     
     fig.savefig('analysis/thesis_plots/wind_roots.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_roots.pdf')
 
     # plt.show()
 
 
-def Make_density_temperature_plot():
+def Make_density_temperature_plot(figsize=thesis_figsize):
 
     fig,ax = plt.subplots(1,1,figsize=figsize)
     ax.grid(alpha=0.5)
@@ -218,16 +221,18 @@ def Make_density_temperature_plot():
         # ax.loglog(Rho,T1b,'b-',lw=0.5)
 
         ax.text(Rho[np.argmin(np.abs(T1-2e6))]*2,2e6,(r'$P_r=P_g$'),
-            transform=ax.transData,ha='left',va='center')
+            transform=ax.transData,ha='left',va='center',fontsize=matplotlib.rcParams['legend.fontsize'])
 
-        ax.text(Rho[np.argmin(np.abs(T2-2e6))]*2,2e6,(r'$P_{end}=P_{ed}$'),
-            transform=ax.transData,ha='left',va='center')
+        ax.text(Rho[np.argmin(np.abs(T2-2e6))]*2,2e6,(r'$P_\mathrm{end}=P_\mathrm{ed}$'),
+            transform=ax.transData,ha='left',va='center',fontsize=matplotlib.rcParams['legend.fontsize'])
 
 
 #    plt.show()
     fig.savefig('analysis/thesis_plots/wind_rho_T.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_rho_T.pdf')
 
-def Make_density_luminosity_plot():
+
+def Make_density_luminosity_plot(figsize=thesis_figsize):
 
     fig,ax = plt.subplots(1,1,figsize=figsize)
     ax.grid(alpha=0.5)
@@ -250,10 +255,106 @@ def Make_density_luminosity_plot():
     # plt.show()
 
     fig.savefig('analysis/thesis_plots/wind_L_Lcrit.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_L_Lcrit.pdf')
+
+
+def Make_vinf_plot(figsize=thesis_figsize):
+
+    fig,ax = plt.subplots(1,1,figsize=figsize)
+    ax.grid(alpha=0.5)
+
+    ax.set_xlabel(r'$\log\dot{M}$ (g s$^{-1}$)')
+    ax.set_ylabel(r'$u_\infty/c$')
+
+    logMdots = IO.load_roots()[0]
+    vinfs = []
+    for logMdot in logMdots:
+        
+        w = IO.read_from_file(logMdot)
+        vph,rph,Lph = w.u[-1],w.r[-1],w.L[-1]
+        Lcrph = Lcrit(w.r[-1],w.rho[-1],w.T[-1])
+
+        vinfs.append(np.sqrt( vph**2 - GM/rph*(1-Lph/Lcrph) ))
+
+    ax.plot(logMdots,np.array(vinfs)/c,'k.-',lw=0.8,ms=3)
+    # plt.show()
+
+    fig.savefig('analysis/thesis_plots/wind_vinf.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_vinf.pdf')
+
+
+def Make_lineshift_plot(figsize=thesis_figsize):
+    
+    fig,(ax1,ax2) = plt.subplots(2,1,figsize=(figsize[0],1.8*figsize[1]))
+    fig.subplots_adjust(hspace=0.3)
+
+    ax1.grid(alpha=0.3)
+    ax1.set_xlabel(r'$r$ (km)')
+    ax1.set_ylabel(r'$\Delta\lambda/\lambda$')
+    w = IO.read_from_file(18)
+    blue = np.sqrt((1-w.u/c)/(1+w.u/c))
+    red = Swz(w.r)**-0.5
+    ax1.plot(w.r/1e5,red-1,'r-',lw=0.8, label='redshift')
+    ax1.plot(w.r/1e5,blue-1,'b-',lw=0.8, label='blueshift')
+    ax1.plot(w.r/1e5,red*blue-1,'k-',lw=0.8, label='total')
+    # ax1.legend(frameon=False,ncol=3,bbox_to_anchor=(0.2,0.9),bbox_transform=fig.transFigure)
+    ax1.legend(frameon=False,ncol=3,bbox_to_anchor=(0,0.95,1,0.95),bbox_transform=ax1.transAxes,loc='lower left',mode='expand',borderaxespad=1.5)
+
+    # ax1.axhline(0,color='k',ls=':',lw=0.8)
+    ax1.axvline(w.rs/1e5,color='k',ls='--',lw=0.8)
+    ax1.text(w.rs/1e5*1.1,0.09,r'$r=r_c$',ha='left',va='center')
+    ax1.set_ylim([-0.02,0.1])
+
+    # ax1.text(100,0.08,r'log$\dot{M}$=18 wind model',fontweight='bold')
+    ax1.text(0.98,0.9,r'log$\dot{M}$=18 model',fontweight='bold',transform=ax1.transAxes,ha='right',va='center')
 
 
 
-Make_profiles_plot()
-Make_rootsplot()
-Make_density_temperature_plot()
-Make_density_luminosity_plot()
+    ax2.grid(alpha=0.3)
+    ax2.set_xlabel(r'$\log\dot{M}$ (g s$^{-1}$)')
+    ax2.set_ylabel(r'$\Delta\lambda/\lambda$')
+
+    logMdots = IO.load_roots()[0]
+    blue,red = [],[]
+    for logMdot in logMdots:
+        
+        w = IO.read_from_file(logMdot)
+        vph,rph = w.u[-1],w.r[-1]
+
+        blue.append(np.sqrt((1-vph/c)/(1+vph/c)))
+        red.append(Swz(rph)**-0.5)
+
+    blue,red = np.array(blue),np.array(red)
+
+    ax2.plot(logMdots,red-1,'r-',lw=0.8,label='redshift')
+    ax2.plot(logMdots,blue-1,'b-',lw=0.8,label='blueshift')
+    ax2.plot(logMdots,blue*red-1,'k-',lw=0.8,label='total')
+    ax2.set_yticks([-0.008,-0.004,0,0.004,0.008,0.012])
+    ax2.set_ylim([-0.008,0.012])
+    # ax.legend(frameon=False )
+
+    # ax2.text(17.5,0.01,r'All wind models, values at $r_\mathrm{ph}$',fontweight='bold')
+    ax2.text(0.98,0.9,r'All models, values at $r_\mathrm{ph}$',fontweight='bold',transform=ax2.transAxes,ha='right',va='center')
+
+
+    # ax2.axhline(0,color='k',ls=':',lw=0.8)
+
+    # plt.show()
+
+    fig.savefig('analysis/thesis_plots/wind_lineshift.pdf',bbox_inches='tight',format='pdf')
+    print('Saved figure to analysis/thesis_plots/wind_lineshift.pdf')
+
+
+
+# Make_profiles_plot()
+# Make_rootsplot()
+# Make_density_temperature_plot()
+# Make_density_luminosity_plot()
+
+
+# rho-L and rho-T plots not full textwidth? Maybe 670%?
+frac = 0.7
+# Make_vinf_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))
+# Make_density_temperature_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))
+# Make_density_luminosity_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))
+# Make_lineshift_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))

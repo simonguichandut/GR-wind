@@ -5,7 +5,6 @@ sys.path.append("./analysis")
 import numpy as np
 import IO
 from timescales import *
-from photosphere import Rphot_tau_twothirds
 
 
 def export(target = "."):
@@ -25,8 +24,8 @@ def export(target = "."):
 
     with open(filename,'w') as f:
 
-        f.write(('{:<11s} \t '*16 +'{:<11s}\n').format(
-            'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)'))
+        f.write(('{:<11s} \t '*18 +'{:<11s}\n').format(
+            'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)','Min (g)','Mout (g)'))
 
 
         for logMdot in logMDOTS[::-1]:
@@ -34,6 +33,7 @@ def export(target = "."):
             w = IO.read_from_file(logMdot) 
 
             if params['FLD'] == True:
+                from photosphere import Rphot_tau_twothirds
                 rph = Rphot_tau_twothirds(logMdot)
                 iph = np.argwhere(w.r==rph)[0][0]
             else:
@@ -51,8 +51,9 @@ def export(target = "."):
             def mass_in_shell(r): 
                 return 4*np.pi*rhofunc(r)*r**2
 
-            Min,err1 = quad(mass_in_shell, w.r[0] , w.rs, epsrel=1e-5)
-            Mout,err2 = quad(mass_in_shell, w.rs , w.r[-1], epsrel=1e-5)
+            r0 = params['R']*1e5 + 2e2 # start integrating 1m above surface to make uniform
+            Min,err1 = quad(mass_in_shell, r0, w.rs, epsrel=1e-5, limit=500)
+            Mout,err2 = quad(mass_in_shell, w.rs , w.r[-1], epsrel=1e-5, limit=500)
             # print(Min/Mout)
 
             # f.write(('%0.2f \t\t '+'%0.6e \t '*15 + '%0.6e\n')%
@@ -70,6 +71,10 @@ def export(target = "."):
             # sonic point + timescales
             f.write(('%0.6e \t'*5)%
                 (w.rs,tflow,tsound,tsound2,Tau))
+
+            # Mass contained
+            f.write(('%0.6e \t'*2)%
+                (Min,Mout))
 
             f.write('\n')
 
