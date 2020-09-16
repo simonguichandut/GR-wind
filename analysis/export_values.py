@@ -33,8 +33,9 @@ def export(target = "."):
             w = IO.read_from_file(logMdot) 
 
             if params['FLD'] == True:
-                from photosphere import Rphot_tau_twothirds
-                rph = Rphot_tau_twothirds(logMdot)
+                from photosphere import Rphot_tau_twothirds,Rphot_Teff
+                # rph = Rphot_tau_twothirds(logMdot)
+                rph  = Rphot_Teff(logMdot)
                 iph = np.argwhere(w.r==rph)[0][0]
             else:
                 rph = w.r[-1]
@@ -51,9 +52,13 @@ def export(target = "."):
             def mass_in_shell(r): 
                 return 4*np.pi*rhofunc(r)*r**2
 
-            r0 = params['R']*1e5 + 2e2 # start integrating 1m above surface to make uniform
-            Min,err1 = quad(mass_in_shell, r0, w.rs, epsrel=1e-5, limit=500)
-            Mout,err2 = quad(mass_in_shell, w.rs , w.r[-1], epsrel=1e-5, limit=500)
+            r0 = params['R']*1e5 + 1e3 # start integrating 10m above surface to make uniform
+            Min,_ = quad(mass_in_shell, r0, w.rs, epsrel=1e-5, limit=500)
+            if params['FLD'] == True:
+                Mout,_ = quad(mass_in_shell, w.rs , rph, epsrel=1e-5, limit=500)
+            else:
+                Mout,_ = quad(mass_in_shell, w.rs , w.r[-1], epsrel=1e-5, limit=500)
+
             # print(Min/Mout)
 
             # f.write(('%0.2f \t\t '+'%0.6e \t '*15 + '%0.6e\n')%

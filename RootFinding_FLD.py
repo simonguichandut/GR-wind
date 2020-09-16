@@ -40,7 +40,7 @@ def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner s
 
 
 
-def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0,Edotmin=1.01,Edotmax=1.05,npts=15):
+def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
 
     # find the value of Ts that allow a solution to go to inf (to tol precision), for each value of Edot
 
@@ -54,15 +54,15 @@ def get_TsEdotrel(logMdot,tol=1e-6,Verbose=0,Edotmin=1.01,Edotmax=1.05,npts=15):
     cont = True
     
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.8f'%Edot_LEdd)
+        print('\nFinding Ts for Edot/LEdd = %.6f'%Edot_LEdd)
 
-        logTsvals = np.linspace(a,b,10)
+        logTsvals = np.linspace(a,b,5)
         logTsvals = np.round(logTsvals,8)
 
         while abs(b-a)>tol and cont:
             print('%.8f    %.8f'%(a,b))
 
-            for logTs in logTsvals[1:]:
+            for logTs in logTsvals[1:-1]:
 
                 print('Current: %.8f'%logTs, end="\r")
 

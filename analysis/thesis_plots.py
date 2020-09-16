@@ -113,7 +113,7 @@ def Make_profiles_plot(lw = 0.8,figsize=thesis_figsize):
 
 
 
-def Make_rootsplot(figsize=thesis_figsize):
+def Make_roots_plot(figsize=thesis_figsize):
 
     fig = plt.figure(figsize=figsize)
 
@@ -347,12 +347,12 @@ def Make_lineshift_plot(figsize=thesis_figsize):
 
 
 # Make_profiles_plot()
-# Make_rootsplot()
+# Make_roots_plot()
 # Make_density_temperature_plot()
 # Make_density_luminosity_plot()
 
 
-# rho-L and rho-T plots not full textwidth? Maybe 670%?
+# rho-L and rho-T plots not full textwidth? Maybe 70%?
 frac = 0.7
 # Make_vinf_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))
 # Make_density_temperature_plot(figsize=(frac*thesis_figsize[0],frac*thesis_figsize[1]))

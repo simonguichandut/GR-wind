@@ -273,6 +273,7 @@ def load_EdotTsrel(logMdot):
                 TsvalsB.append(eval(line.split()[2]))
         
         return True,Edotvals,TsvalsA,TsvalsB
+        # note that Edotvals is (Edot-Mdotc^2)/LEdd, Tsvals is logTs
 
 
 def clean_EdotTsrelfile(logMdot,warning=1):

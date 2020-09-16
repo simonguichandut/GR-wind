@@ -24,6 +24,10 @@ analysis/misc_plots/
 
 analysis/spot_check/
 
+analysis/thesis*
+
+analysis/paper*
+
 He_grid_with_winds
 
 light_curve/

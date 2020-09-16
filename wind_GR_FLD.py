@@ -445,7 +445,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 Wind = namedtuple('Wind',
             ['rs','r','T','rho','u','phi','Lstar','L','P','cs','taus','lam'])  
 
-def setup_globals(params,logMdot,Verbose,return_them=False):
+def setup_globals(params,logMdot,Verbose=False,return_them=False):
     global Mdot, Edot, Ts, rs, verbose
     Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1],Verbose
     rs = rSonic(Ts)
@@ -493,6 +493,7 @@ def OuterBisection(rend=1e9,tol=1e-5):
             print('Not able to find a solution that diverges in opposite \
                     direction after changing Ts by 200 tolerances.  \
                     Problem in the TsEdot interpolation')
+            break
 
     # if sola was the high Ts one, switch sola and solb
     if direction == -1:

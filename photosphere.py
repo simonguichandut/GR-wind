@@ -4,16 +4,35 @@ import IO
 import physics
 from scipy.integrate import trapz
 
-
 assert IO.load_params()['FLD'] == True
 
+
+arad = 7.5657e-15
+c = 2.99792458e10
+GM = 6.6726e-8*2e33*IO.load_params()['M']
+
 eos = physics.EOS(IO.load_params()['comp'])
+
+
+def Swz(r):  # Schwartzchild metric term
+    return (1-2*GM/c**2/r)    
+
+def Rphot_Teff(logMdot):
+    # defines the photosphere as the location where T=Teff, i.e. L=4pi Rph^2 sigmaT^4
+
+    w = IO.read_from_file(logMdot)
+    F = w.L/(4*np.pi*w.r**2)
+    alpha = F/(arad*c*w.T**4)
+
+    return w.r[np.argmin(abs(alpha - 0.25))]
+
+
 
 def Rphot_trapz(logMdot):
     # integrates in to find the photosphere with trapz
 
     w = IO.read_from_file(logMdot)
-    kapparho = eos.kappa(w.rho,w.T) * w.rho
+    kapparho = eos.kappa(w.rho,w.T) * w.rho / Swz(w.r)**(0.5)
     i = 2
     while True:
         tau = trapz(kapparho[-i:],x=w.r[-i:])
