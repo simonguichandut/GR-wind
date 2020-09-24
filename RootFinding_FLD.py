@@ -23,7 +23,7 @@ def run_outer(logMdot,Edot_LEdd,logTs,Verbose=0):  # full outer solution from so
         raise Exception('sonic point less than RNS')
 
     # High rmax to ensure we find two solutions that diverge separatly in rootfinding process
-    return outerIntegration(r0=rs, T0=Ts, phi0=2.0, rmax=1e12)
+    return outerIntegration(r0=rs, T0=Ts, phi0=2.0, rmax=1e11)
 
 def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner solution from sonic point
     global Mdot,Edot,Ts,verbose,rs
@@ -144,7 +144,16 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         print(' EdotTsrel file ok')
 
     # Now do a 1D search on the interpolated line based on the inner BC error
-    rel_spline = IUS(Edotvals,TsvalsA)
+    if len(Edotvals)<=3: # need at least 4 points for cubic spline
+        print('Not enough points to interpolate spline, re-interpolating')
+        if len(Edotvals)==1:
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[0]+0.001,npts=5)
+        else:
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[-1]+0.001,npts=5)
+        raise Exception('Call Again')
+
+    else:
+        rel_spline = IUS(Edotvals,TsvalsA)
     
     def Err(Edot_LEdd):
         if isinstance(Edot_LEdd,np.ndarray): Edot_LEdd=Edot_LEdd[0]
@@ -164,11 +173,15 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
             break
 
     if erra*errb > 0: # same sign (we'll enter this if we didn't break last loop)
+        diff = Edotvals[1]-Edotvals[0]
         if erra<0:
-            print('\nOnly negative errors (rb<RNS)') # need smaller Ts
+            print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-0.01*diff,npts=5)
         else:
-            print('\nOnly positive errors (rb>RNS)') # need higher Ts
-        raise Exception('No root in the interval')
+            print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+0.01*diff,Edotmax=Edotvals[-1]+diff,npts=5)
+#        raise Exception('No root in the interval')
+        raise Exception('Call Again')
 
     else:
         x = brentq(Err,Edotvals[0],Edot) # Edot is the last value before break above
@@ -223,10 +236,12 @@ def driver(logmdots,usefile=1):
     from IO import save_root,clean_rootfile
 
     if logmdots == 'all':
-        logmdots = np.round(np.arange(19,17,-0.05),decimals=2)
+        logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
 
     roots = []
     problems,success = [],[]
+
+    refine_counter = 0   # we'll extend the edges of the EdotTs interpolation until there is a root present, or until we've tried too many times
 
     for logMDOT in logmdots:
 
@@ -236,12 +251,19 @@ def driver(logmdots,usefile=1):
             success.append(logMDOT)
             save_root(logMDOT,root)
         except Exception as e:
-            problems.append(logMDOT)
-            print('\n',e)
-            print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
-            try : RootFinder(logMDOT,checkrel=True,Verbose=True)
-            except: pass
-    
+
+            if e.__str__() == 'Call Again' and refine_counter<5:
+                print('Calling again..')
+                RootFinder(logMDOT,checkrel=False)
+                refine_counter+=1
+
+            else:
+                problems.append(logMDOT)
+                print('\n',e)
+                print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
+                try : RootFinder(logMDOT,checkrel=True,Verbose=True)
+                except: pass
+        
         
     print('\n\n*********************  SUMMARY *********************')
     print('Found roots for these values :',success)
