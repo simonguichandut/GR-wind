@@ -1,6 +1,6 @@
 ---- NS ----
-M	1.1		[Msun]
-R	10		[km]
+M	2.0		[Msun]
+R	12		[km]
 
 --- Wind ---
 y_inner 1e8		[g/cm2]
