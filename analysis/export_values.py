@@ -53,6 +53,10 @@ def export(target = "."):
                 return 4*np.pi*rhofunc(r)*r**2
 
             r0 = params['R']*1e5 + 1e3 # start integrating 10m above surface to make uniform
+            if w.r[0]>r0:
+                print('Warning: rbase quite large (%.3f)'%(w.r[0]/1e5))
+                r0=w.r[0]
+
             Min,_ = quad(mass_in_shell, r0, w.rs, epsrel=1e-5, limit=500)
             if params['FLD'] == True:
                 Mout,_ = quad(mass_in_shell, w.rs , rph, epsrel=1e-5, limit=500)

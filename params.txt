@@ -1,11 +1,11 @@
 ---- NS ----
-M	1.4		[Msun]
-R	12		[km]
+M	1.1	[Msun]
+R	12	[km]
 
 --- Wind ---
-y_inner 1e8		[g/cm2]
+y_inner 1e8	[g/cm2]
 tau_out 3		
-comp	solar		(H, He or Ni..)
+comp	He	(H, He or Ni..)
 EOS     IGDE    (IG = ideal gas, IGDE = ideal gas degenerate electrons, POLYN = polytropic index N)
 FLD    	1    	(boolean)    
 
