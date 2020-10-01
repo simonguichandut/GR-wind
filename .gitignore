@@ -44,8 +44,19 @@ foo.py
 results/Ni*
 results/He_IG_*
 results/H_*
-results/He_IGDE_M2.0*
-results/He_IGDE_M1.1*
-results/He_IGDE_M1.4_R10*
-results/He_IGDE_M1.4_R13*
+
+# results/He_IGDE_M2.0*
+# results/He_IGDE_M1.1*
+# results/He_IGDE_M1.4_R10*
+# results/He_IGDE_M1.4_R13*
+
+results/He_IGDE_M1.1_R10_tau3_y8
+results/He_IGDE_M1.1_R12_tau3_y8
+results/He_IGDE_M1.1_R13_tau3_y8
+results/He_IGDE_M1.4_R10_tau3_y8
+results/He_IGDE_M1.4_R12_tau3_y8
+results/He_IGDE_M1.4_R13_tau3_y8
+results/He_IGDE_M2.0_R10_tau3_y8
+results/He_IGDE_M2.0_R12_tau3_y8
+results/He_IGDE_M2.0_R13_tau3_y8
 

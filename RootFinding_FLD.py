@@ -6,10 +6,9 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.optimize import fsolve,brentq
 from wind_GR_FLD import *
 
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning) 
+# import warnings
+# warnings.filterwarnings("ignore", category=RuntimeWarning) 
 from IO import save_root,clean_rootfile
-
 
 """
 Rootfinding is done differently in FLD than optically thick.  For every (Mdot,Edot), there is a single value of Ts 
@@ -59,7 +58,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
     cont = True
     
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.6f'%Edot_LEdd)
+        print('\nFinding Ts for Edot/LEdd = %.8f'%Edot_LEdd)
 
         logTsvals = np.linspace(a,b,5)
         logTsvals = np.round(logTsvals,8)
@@ -84,7 +83,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
                         a = logTs
                     elif res.status==0:
                         raise Exception('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
-                    else:
+                    else: # res.status=-1
                         b = logTs
                         break
 
@@ -132,7 +131,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
 
 
 
-def RootFinder(logMdot,checkrel=True,Verbose=False):
+def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
 
     """ Find the (Edot,Ts) pair that minimizes the error on the inner boundary condition """
 
@@ -203,10 +202,10 @@ def RootFinder(logMdot,checkrel=True,Verbose=False):
         diff = Edotvals[1]-Edotvals[0]
         if erra<0:
             print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-0.01*diff,npts=5)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-6*diff,npts=5*depth)
         else:
             print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+0.01*diff,Edotmax=Edotvals[-1]+diff,npts=5)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8*diff,Edotmax=Edotvals[-1]+diff,npts=5*depth)
 #        raise Exception('No root in the interval')
         raise Exception('Call Again')
 
@@ -247,53 +246,116 @@ def ImproveRoot(logMdot, eps=0.001):
     IO.clean_EdotTsrelfile(logMdot,warning=0)
     root = RootFinder(logMdot,checkrel=False)
     IO.save_root(logMdot,root)
-    #IO.clean_rootfile()
+    IO.clean_rootfile(warning=0)
 
 
 
 ###################################### Driver ########################################
 
-def driver(logmdots,usefile=1, recursion_depth=0):
+def recursor(logMdot, depth=1, max_depth=5):
+    # will call RootFinder many times by recursion, as long as it returns the "Call Again" exception
 
-    recursion_flag = 0 if recursion_depth==0 else 1
+    if depth==max_depth:
+        print('Reached max recursion depth')
+        return None 
 
-    roots = []
-    problems,success = [],[]
+    try:
+        root = RootFinder(logMdot,checkrel=False,depth=depth)
+        return root
 
-    if recursion_depth<5:
+    except Exception as E:
 
-        if logmdots == 'all':
-            logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
-    
-        for logMDOT in logmdots:
-    
-            try:
-                root = RootFinder(logMDOT,checkrel=False)
-                roots.append(root)
-                success.append(logMDOT)
-                save_root(logMDOT,root)
-            except Exception as e:
-    
-                if e.__str__() == 'Call Again':
-                    print('Calling again.. (recursion depth %d)'%(recursion_depth+1))
-                    driver([logMDOT],recursion_depth=recursion_depth+1)
-#                    recursion_flag = 1
-    
-                else:
-                    problems.append(logMDOT)
-                    print('\n',e)
-                    print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
-                    try : RootFinder(logMDOT,checkrel=True,Verbose=True)
-                    except: pass
-            
-    if recursion_flag == 0:  
-        # This will only print after the mother loop is over (won't print at each recursion. just for aesthetics :)
-        print('\n\n*********************  SUMMARY *********************')
-        print('Found roots for these values :',success)
-        print('There were problems for these values :',problems)
-    
+        if E.__str__() == 'Call Again':
+            print('\nGoing into recursion depth %d'%(depth+1))
+            root = recursor(logMdot, depth=depth+1)
+            return root
+
+        else:
+            print(E)
+            raise Exception('Problem')
+
+
+def driver(logmdots):
+
+    if logmdots == 'all':
+        logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
+
+    success, max_recursed, problems = [],[],[]
+
+    for logMdot in logmdots:
+
+        try: 
+            root = recursor(logMdot)
+
+            if root is None:
+                max_recursed.append(logMdot)
+
+            else:
+                success.append(logMdot)
+                save_root(logMdot,root)
+
+        except:
+                problems.append(logMdot)
+                print('\n',e)
+                print('\nPROBLEM WITH LOGMDOT = ',logMdot,'\nTrying again with verbose and checking EdotTs rel...\n\n')
+                try : RootFinder(logMDOT,checkrel=True,Verbose=True)
+                except: pass
+
+
+    print('\n\n*********************  SUMMARY *********************')
+    print('Found roots for :',success)
+    print('Reached recursion limit trying to find roots for :',max_recursed)
+    print('There were problems for :',problems)
+
     if len(success)>=1: #and input('\nClean (overwrite) updated root file? (0 or 1) '):
        clean_rootfile(warning=0)
+    
+
+
+# def driver(logmdots,usefile=1, recursion_depth=0):
+
+#     recursion_flag = 0 if recursion_depth==0 else 1
+
+#     roots = []
+#     problems,success = [],[]
+
+#     if recursion_depth>5:
+#         print('Reached recursion limit, exiting. Did not find root for logMdot=',logmdots)
+#     if recursion_depth<5:
+
+#         if logmdots == 'all':
+#             logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
+    
+#         for logMDOT in logmdots:
+    
+#             try:
+#                 root = RootFinder(logMDOT,checkrel=False)
+#                 roots.append(root)
+#                 success.append(logMDOT)
+#                 save_root(logMDOT,root)
+#             except Exception as e:
+    
+#                 if e.__str__() == 'Call Again':
+#                     print('Calling again.. (recursion depth %d)'%(recursion_depth+1))
+#                     driver([logMDOT],recursion_depth=recursion_depth+1)
+# #                    recursion_flag = 1
+    
+#                 else:
+#                     problems.append(logMDOT)
+#                     print('\n',e)
+#                     print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
+#                     try : RootFinder(logMDOT,checkrel=True,Verbose=True)
+#                     except: pass
+            
+#     if recursion_flag == 0:  
+#         # This will only print after the mother loop is over (won't print at each recursion. just for aesthetics :)
+#         print('\n\n*********************  SUMMARY *********************')
+#         print('Found roots for these values :',success)
+#         print('There were problems for these values :',problems)
+    
+#     if len(success)>=1: #and input('\nClean (overwrite) updated root file? (0 or 1) '):
+#        clean_rootfile(warning=0)
+    
     
 
 # Command line call

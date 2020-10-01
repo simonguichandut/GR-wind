@@ -489,11 +489,12 @@ def OuterBisection(rend=1e9,tol=1e-5):
         rsb = rSonic(Tsb)
         solb = outerIntegration(r0=rsb,T0=Tsb,phi0=2.0)
         i+=1
-        if i==200:
+        if i==20:
             print('Not able to find a solution that diverges in opposite \
-                    direction after changing Ts by 200 tolerances.  \
+                    direction after changing Ts by 20 tolerances.  \
                     Problem in the TsEdot interpolation')
-            break
+            raise Exception('Improve root')
+            # break
 
     # if sola was the high Ts one, switch sola and solb
     if direction == -1:

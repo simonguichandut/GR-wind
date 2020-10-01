@@ -63,9 +63,13 @@ def save_root(logMdot,root):
             logMdot,root[0],root[1]))
 
 
-def load_roots():
+def load_roots(specific_file=None):
 
-    filename = get_name()
+    if specific_file != None:
+        filename = specific_file
+    else:
+        filename = get_name()
+        
     path = 'roots/roots_' + filename + '.txt'
 
     if not os.path.exists(path):

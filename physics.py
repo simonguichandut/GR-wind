@@ -14,22 +14,36 @@ class EOS:
     def __init__(self, comp):
 
         self.comp = comp
+
+        # X,Y,Z : H, He, metals fraction (X+Y+Z=1)
+        # Zno : atomic number
     
         # Homogeneous
-        if self.comp == 'He':
-            self.X = 0
-            self.Z = 2
-            self.mu_I = 4
+        if self.comp in ('He','H','Ni'):
 
-        elif self.comp == 'H' :
-            self.X = 1
-            self.Z = 1
-            self.mu_I = 1
+            if self.comp == 'He':
+                self.X = 0
+                self.Y = 1
+                self.Z = 0
+                self.Zno = 2
+                self.mu_I = 4
 
-        elif self.comp == 'Ni':
-            self.X = 0
-            self.Z = 28
-            self.mu_I = 56
+            elif self.comp == 'H' :
+                self.X = 1
+                self.Y = 0
+                self.Z = 0
+                self.Zno = 1
+                self.mu_I = 1
+
+            elif self.comp == 'Ni':
+                self.X = 0
+                self.Y = 0
+                self.Z = 1
+                self.Zno = 28
+                self.mu_I = 56
+
+            self.mu_e = 2/(1+ self.X)                                   # http://faculty.fiu.edu/~vanhamme/ast3213/mu.pdf
+            self.mu = 1/(1/self.mu_I + 1/self.mu_e)
 
         # Heterogeneous
         else:
@@ -38,20 +52,25 @@ class EOS:
             else:
                 # Expecting "X,Y,Z"
                 self.X, self.Y, self.Z = eval(comp)
-                
-            self.mu_I = 1/(2*self.X + 3*self.Y/4 + self.Z/2)        # http://www.astro.wisc.edu/~townsend/resource/teaching/astro-310-F08/21-eos.pdf
 
-
-        self.mu_e = 2/(1+ self.X)                                   # http://faculty.fiu.edu/~vanhamme/ast3213/mu.pdf
-        self.mu = 1/(1/self.mu_I + 1/self.mu_e)
+            self.mu = 1/(2*self.X + 3*self.Y/4 + self.Z/2)        # http://www.astro.wisc.edu/~townsend/resource/teaching/astro-310-F08/21-eos.pdf
+            self.mu_e = 2/(1+ self.X)
+            self.mu_I = 1/(1/self.mu - 1/self.mu_e)
 
         self.kappa0 = 0.2 * (1+self.X)                              # https://www.astro.princeton.edu/~gk/A403/opac.pdf
 
 
     # Opacity
+
+    def kff(self,rho,T):
+        if self.comp in ('He','H','Ni'):
+            return 1e23*self.Zno**2/(self.mu_e*self.mu_I)*rho*T**(-7/2)
+        else:
+            return 3.68e22 * (1-self.Z)*(1+self.X)*rho*T**(-7/2)
+
     def kappa(self,rho,T):
-        # return self.kappa0/(1.0+(T/4.5e8)**0.86)     
-        return self.kappa0/(1.0+(T/4.5e8)**0.86) + 1e23*self.Z**2/(self.mu_e*self.mu_I)*rho*T**(-7/2)
+        # return kappa0/(1.0+(T/4.5e8)**0.86)     
+        return self.kappa0/(1.0+(T/4.5e8)**0.86) + self.kff(rho,T)
 
     # Ideal gas sound speed c_s^2
     def cs2(self,T): 
