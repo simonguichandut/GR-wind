@@ -51,17 +51,32 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
     if Verbose: print('\nLOGMDOT = %.2f\n'%logMdot)
 
     Edotvals = np.linspace(Edotmin,Edotmax,npts)
-    Edotvals = np.round(Edotvals,8)
+    Edotvals = np.round(Edotvals,10)
     
     Tsvals = []
-    a,b = 6.1,8
     cont = True
-    
-    for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.8f'%Edot_LEdd)
 
-        logTsvals = np.linspace(a,b,5)
-        logTsvals = np.round(logTsvals,8)
+    if IO.load_EdotTsrel(logMdot)[0] is True: #relation already exists, will use it to predict initial a,b bounds on Ts
+        _,Edotrel,Tsrel,_ = IO.load_EdotTsrel(logMdot)
+
+        if Edotrel[0]>Edotmin:
+            b=Tsrel[0]
+            a=b-0.5
+        else:
+            ix= [i for i in range(len(Edotrel)) if Edotrel[i]<Edotmin][-1] # this gives the index of the Edot in Edotvals which is closest (but lower than) Edotmin
+            a = Tsrel[ix]
+            b = a+0.5
+        npts_Ts = 50 # if we are here we are really refining the param space
+
+    else:
+        a,b = 6.1,8
+        nps_Ts=10
+
+    for Edot_LEdd in Edotvals:
+        print('\nFinding Ts for Edot/LEdd = %.10f'%Edot_LEdd)
+
+        logTsvals = np.linspace(a,b,npts_Ts)
+        logTsvals = np.round(logTsvals,9)
 
         while abs(b-a)>tol and cont:
             print('%.8f    %.8f'%(a,b))
@@ -104,7 +119,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
                     y = (y2-y1)/(x2-x1) * (logMdot-x1) + y1
                     # Now check if our bottom bound (a) is very far from the prediction)
                     # in logspace, 0.5 is very far, too far for the root to be there
-                    if a-y>0.2:
+                    if a-y>0.5:
                         print('Bottom Ts (%.2f) too far from where the root will realistically be (prediction from two other Mdots is logTs=%.2f'%(a,y))
                         cont=False
                         break
@@ -202,10 +217,10 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
         diff = Edotvals[1]-Edotvals[0]
         if erra<0:
             print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-6*diff,npts=5*depth)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-8,npts=5*depth)
         else:
             print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8*diff,Edotmax=Edotvals[-1]+diff,npts=5*depth)
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8,Edotmax=Edotvals[-1]+diff,npts=5*depth)
 #        raise Exception('No root in the interval')
         raise Exception('Call Again')
 

@@ -253,12 +253,17 @@ def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB):
         f = open(filepath, 'w+')
         f.write('{:<12s} \t {:<12s} \t {:<12s}\n'.format(
                 'Edot/LEdd', 'log10(TsA)', 'log10(TsB)'))
+        # f.write('{:<13s} \t {:<13s} \t {:<13s}\n'.format(
+                # 'Edot/LEdd', 'log10(TsA)', 'log10(TsB)'))
+
     else:
         f = open(filepath, 'a')
 
     for edot, tsa, tsb in zip(Edotvals, TsvalsA, TsvalsB):
         f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(
                 edot, tsa, tsb))
+        # f.write('{:<.11f} \t {:<.11f} \t {:<.11f}\n'.format(
+                # edot, tsa, tsb))
 
 def load_EdotTsrel(logMdot):
 
@@ -289,7 +294,8 @@ def clean_EdotTsrelfile(logMdot,warning=1):
     _,Edotvals,TsvalsA,TsvalsB = load_EdotTsrel(logMdot)
     new_Edotvals = np.sort(np.unique(Edotvals))
 
-    if list(new_Edotvals) != list(Edotvals):
+    # if list(new_Edotvals) != list(Edotvals):
+    if True:
 
         v = []
         for x in new_Edotvals:
