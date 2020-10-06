@@ -76,15 +76,15 @@ def load_roots(specific_file=None):
         raise TypeError('Root file does not exist')
 
     else:
-        logMdotS,roots = [],[]
+        logMdots,roots = [],[]
         with open(path, 'r') as f:
             next(f)
             for line in f:
                 stuff = line.split()
-                logMdotS.append(float(stuff[0]))
+                logMdots.append(float(stuff[0]))
                 roots.append([float(stuff[1]), float(stuff[2])])
 
-        return logMdotS,roots
+        return logMdots,roots
 
 
 def make_directories():
@@ -92,7 +92,7 @@ def make_directories():
     if not os.path.exists(path): # Assuming code is being run from main dir
         os.mkdir(path)
         os.mkdir(path+'/data')
-        os.mkdir(path+'/plots')
+        # os.mkdir(path+'/plots')
 
 
 def write_to_file(logMdot,wind):

@@ -27,7 +27,7 @@ def run_outer(logMdot,Edot_LEdd,logTs,Verbose=0):  # full outer solution from so
         raise Exception('sonic point less than RNS')
 
     # High rmax to ensure we find two solutions that diverge separatly in rootfinding process
-    return outerIntegration(r0=rs, T0=Ts, phi0=2.0, rmax=1e11)
+    return outerIntegration(r0=rs, T0=Ts, phi0=2.0, rmax=1e11),rs
 
 def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner solution from sonic point
     global Mdot,Edot,Ts,verbose,rs
@@ -70,7 +70,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
 
     else:
         a,b = 6.1,8
-        nps_Ts=10
+        npts_Ts=10
 
     for Edot_LEdd in Edotvals:
         print('\nFinding Ts for Edot/LEdd = %.10f'%Edot_LEdd)
@@ -86,7 +86,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
                 print('Current: %.8f'%logTs, end="\r")
 
                 try:
-                    res = run_outer(logMdot,Edot_LEdd,logTs,Verbose)
+                    res,rs = run_outer(logMdot,Edot_LEdd,logTs,Verbose)
                 except Exception as E:
                     print(E)
                     print('Exiting...')
@@ -140,7 +140,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
         IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b])
 
         a,b = a,8  # next Edot, Ts will certainly be higher than this one
-        print('ok'.ljust(20))
+        print('ok. Final logrs = %.3f'.ljust(20)%(np.log10(rs)))
 
     IO.clean_EdotTsrelfile(logMdot,warning=0)
 
@@ -175,8 +175,8 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
     if checkrel:
         print('Checking if relation is correct')
         for i in (0,-1):
-            sola = run_outer(logMdot,Edotvals[i],TsvalsA[i])
-            solb = run_outer(logMdot,Edotvals[i],TsvalsB[i])
+            sola,_ = run_outer(logMdot,Edotvals[i],TsvalsA[i])
+            solb,_ = run_outer(logMdot,Edotvals[i],TsvalsB[i])
             if sola.status == solb.status:
                 print('Problem with EdotTsrel file at Edot/LEdd=%.3f ,logTs=%.3f'%(Edotvals[i],TsvalsA[i]))
                 print(sola.message)
@@ -200,14 +200,14 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
         if isinstance(Edot_LEdd,np.ndarray): Edot_LEdd=Edot_LEdd[0]
         logTs=rel_spline(Edot_LEdd)
         E = run_inner(logMdot,Edot_LEdd,logTs)
-        print("Looking for root... Edot/LEdd=%.6f \t logTs=%.6f \t Error=%.6f"%(Edot_LEdd,logTs,E),end="\r")
+        print("Looking for root... Edot/LEdd=%.6f \t logTs=%.6f \t Error= %.6f"%(Edot_LEdd,logTs,E),end="\r")
         return E
 
 
     if Verbose: print('Searching root on Edot,Ts relation based on inner boundary error')
 
     erra = Err(Edotvals[0])
-    for Edot in Edotvals[:0:-1]: # cycle through the values in reverse order until the 2nd one
+    for Edot in Edotvals[:0:-1]: # cycle through the values in reverse order
         errb = Err(Edot)
         if erra*errb < 0: # different sign, means a root is in the interval
             print('\nroot present')

@@ -479,26 +479,24 @@ def OuterBisection(rend=1e9,tol=1e-5):
     i=0
     while solb.status == sola.status:
 
-        if i>0: 
-            Tsa,rsa,sola = Tsb,rsb,solb  
-            # might as well update solution a 
-            # (since this process gets closer to the right Ts)
+        # if i>0: 
+        #     Tsa,rsa,sola = Tsb,rsb,solb  
+        #     # might as well update solution a 
+        #     # (since this process gets closer to the right Ts)
+        # Actually don't do this because it messes with the rootfinding 
+        # (inward integration might no longer land on rb=RNS, but it sure does with the initial rsa because it's a root)
 
         logTsb = np.log10(Tsb) + direction*step
         Tsb = 10**logTsb
         rsb = rSonic(Tsb)
         solb = outerIntegration(r0=rsb,T0=Tsb,phi0=2.0)
         i+=1
-        if i==10:
+        if i==20:
             print('Not able to find a solution that diverges in opposite \
-                    direction after changing Ts by 10 tolerances.  \
+                    direction after changing Ts by 20 tolerances.  \
                     Problem in the TsEdot interpolation')
             raise Exception('Improve root')
             # break
-
-    # if sola was the high Ts one, switch sola and solb
-    if direction == -1:
-        (rsa,Tsa,sola),(rsb,Tsb,solb) = (rsb,Tsb,solb),(rsa,Tsa,sola)
             
     if verbose:
         print('Two initial solutions. sonic point values:')
@@ -523,21 +521,22 @@ def OuterBisection(rend=1e9,tol=1e-5):
     # sola(rsb) doesnt exist
 
     for i,ri in enumerate(R):
-        conv = check_convergence(sola,solb,ri)
-        if conv[0] is False:
-            i0=i            # i0 is index of first point of divergence
-            break
-        else:
-            Ta,Tb,phia,phib = conv[1:]
+        if ri>sola.t[0] and ri>solb.t[0]:
+            conv = check_convergence(sola,solb,ri)
+            if conv[0] is False:
+                i0=i            # i0 is index of first point of divergence
+                break
+            else:
+                Ta,Tb,phia,phib = conv[1:]
 
     if i0==0:
         print('Diverging at rs!')
         print(conv)
         print('rs=%.5e \t rsa=%.5e \t rsb=%.5e'%(rs,rsa,rsb))
         
-
     # Construct initial arrays
     T,Phi = sola.sol(R[:i0])
+
     def update_arrays(T,Phi,sol,R,j0,jf):
         # Add new values from T and Phi using ODE solution object. 
         # Radius points to add are R[j0] and R[jf]
@@ -549,6 +548,13 @@ def OuterBisection(rend=1e9,tol=1e-5):
     if verbose:
         print('\nBeginning bisection')
         print('rconv (km) \t Step # \t Iter \t m')  
+
+    # input('Pause before starting. Press enter')
+
+    # if sola was the high Ts one, switch sola and solb (just because convenient)
+    if direction == -1:
+        (rsa,Tsa,sola),(rsb,Tsb,solb) = (rsb,Tsb,solb),(rsa,Tsa,sola)
+
     a,b = 0,1
     step,count = 0,0
     i = i0
