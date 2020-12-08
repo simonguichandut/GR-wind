@@ -63,7 +63,7 @@ def save_root(logMdot,root):
             logMdot,root[0],root[1]))
 
 
-def load_roots(specific_file=None):
+def load_roots(logMdot=None,specific_file=None):
 
     if specific_file != None:
         filename = specific_file
@@ -84,7 +84,10 @@ def load_roots(specific_file=None):
                 logMdots.append(float(stuff[0]))
                 roots.append([float(stuff[1]), float(stuff[2])])
 
-        return logMdots,roots
+        if logMdot is None:
+            return logMdots,roots
+        else:
+            return roots[logMdots.index(logMdot)]
 
 
 def make_directories():

@@ -387,13 +387,8 @@ if __name__ == "__main__":
         else:
             logmdots = [eval(sys.argv[1])]
 
-        if len(sys.argv)<3:
-            driver(logmdots)
-        else:
-            if sys.argv[2]=='1' or sys.argv[2]=='True':
-                driver(logmdots, usefile = True)
-            else:
-                driver(logmdots, usefile = False)
+        driver(logmdots)
+
             
             
 

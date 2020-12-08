@@ -25,7 +25,7 @@ if params['FLD'] == False:
     sys.exit('This script is for FLD calculations')
 
 # Generate EOS class and methods
-eos = physics.EOS(params['comp'])
+eos = physics.EOS_FLD(params['comp'])
 
 # Mass-dependent parameters
 M,RNS,y_inner = params['M'],params['R'],params['y_inner']
@@ -53,7 +53,7 @@ def Lcrit(r,rho,T): # local critical luminosity
 # Modified version of Pomraning (1983) FLD prescription.  
 # See Guichandut & Cumming (2020)
 
-def FLD_Lam(Lstar,r,v,T):
+def FLD_Lam(Lstar,r,v,T,return_params=False):
 
     if isinstance(Lstar, (list,tuple,np.ndarray)): 
         # for function to be able to take and return array
@@ -69,18 +69,48 @@ def FLD_Lam(Lstar,r,v,T):
 
         if alpha>1:
 #            raise Exception
-#            print('causality warning : F>cE')
+            # print('causality warning : F>cE')
             alpha=1-1e-9
 
-        Lam = 1/12 * ( (2-3*alpha) + np.sqrt(-15*alpha**2 + 12*alpha + 4) )  
-        # 1/3 thick , 0 thin
+        Lam = 1/12 * ( (2-3*alpha) + np.sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
+        
+        R = alpha/Lam # 0 thick, 1/lam->inf thin
 
         ## Quinn formula
         # YY = Y(r,v)
         # rho = Mdot/(4*np.pi*r**2*v*YY)
         # Lam = 1/(3 + 2*YY/taustar(r,rho,T))
 
-        return Lam
+        if return_params:
+            return Lam,alpha,R
+        else:
+            return Lam
+
+
+def solve_energy(r,v,T):
+
+    # If radiation pressure depends on lambda, and thus on L, solving for the luminosity
+    # from energy conservation takes more than a single step
+
+    # If fed arrays, need to go one by one
+    if isinstance(r, (list, tuple, np.ndarray)):
+        Lstar = []
+        for i in range(len(r)):
+            Lstar.append(solve_energy(r[i],v[i],T[i]))
+        return Lstar
+
+    rho = Mdot/(4*np.pi*r**2*Y(r, v)*v)
+
+    Lstar1 = Edot - Mdot*eos.H(rho, T, lam=1/3, R=0)*Y(r, v) + Mdot*c**2  # optically thick
+    Lstar2 = Edot - Mdot*eos.H(rho, T, lam=1e-10, R=1e10)*Y(r, v) + Mdot*c**2  # optically thin
+
+    def energy_error(Lstar):
+        Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+        return Edot - Mdot*eos.H(rho, T, Lam, R)*Y(r, v) + Mdot*c**2 - Lstar
+
+    Lstar = brentq(energy_error, Lstar1, Lstar2)
+    return Lstar
+
 
 # -------------------------- Paczynski&Proczynski ----------------------------
 
@@ -105,16 +135,17 @@ def B(T):
 
 def C(Lstar, T, r, rho, v):  # eq 5c, but modified because of FLD
 
-    Lam = FLD_Lam(Lstar,r,v,T)
+    Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
     L = Lcomoving(Lstar,r,v)
 
     return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * \
-            (1 + eos.Beta(rho,T)/(12*Lam*(1-eos.Beta(rho,T))))
+            (1 + eos.Beta(rho,T,Lam,R)/(12*Lam*(1-eos.Beta(rho,T,Lam,R))))
 
 
 # --------------------- Degenerate electron corrections --------------------
 # We use these corrections when integrating to high densities 
 # (below sonic point, going towards the surface)
+# But only if the eos is IGDE (ideal gas degenerate electrons) in params.txt
 def A_e(rho,T):  
     pe,_,[alpha1,_,f] = eos.electrons(rho,T)
     return 1 + 1.5*eos.cs2_I(T)/c**2 + pe/(rho*c**2)*(f/(f-1) - alpha1)
@@ -124,11 +155,12 @@ def B_e(rho,T):
     return eos.cs2_I(T) + pe/rho*(alpha1 + alpha2*f)
 
 def C_e(Lstar, T, r, rho, v):  
-    _,_,[alpha1,_,_] = eos.electrons(rho,T)
-    bi,be = eos.Beta_I(rho, T), eos.Beta_e(rho, T)
 
-    Lam = FLD_Lam(Lstar,r,v,T)
+    Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
     L = Lcomoving(Lstar,r,v)
+
+    _,_,[alpha1,_,_] = eos.electrons(rho,T)
+    bi,be = eos.Beta_I(rho, T, Lam, R), eos.Beta_e(rho, T, Lam, R)
 
     return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * \
             (1 + (bi + alpha1*be)/(12*Lam*(1-bi-be)))
@@ -157,8 +189,10 @@ def uphi(phi, T, subsonic):
 def numerator(r, T, v):  # numerator of eq (4a)
     
     rho = Mdot/(4*np.pi*r**2*Y(r, v)*v)     # eq 1a
-    Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, v) + Mdot*c**2   
+    # Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, v) + Mdot*c**2   
     # eq 1c, but Edot now means Edot + Mc^2
+
+    Lstar = solve_energy(r,v,T)
 
     return gamma(v)**(-2) *\
            (GM/r/Swz(r) * (A(T)-B(T)/c**2) - C(Lstar, T, r, rho, v) - 2*B(T))
@@ -214,16 +248,17 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
 
     rho = Mdot/(4*np.pi*r**2*u*Y(r, u))
 
-    Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2    
+    # Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2 
+    Lstar = solve_energy(r,u,T)   
     # eq 1c, modified for the redefinition of Edot
     if not return_all:
         return u, rho, phi, Lstar
     else:
+        lam,_,R = FLD_Lam(Lstar,r,u,T,return_params=True)
+        P = eos.pressure(rho, T, lam, R)
         L = Lcomoving(Lstar,r,u)
-        P = eos.pressure(rho, T)
         cs = np.sqrt(eos.cs2(T))
         taus = taustar(r,rho,T)
-        lam = FLD_Lam(Lstar,r,u,T)
         return u, rho, phi, Lstar, L, P, cs, taus, lam
 
 
@@ -237,27 +272,31 @@ def calculateVars_rho(r, T, rho, return_all=False):
     u = Mdot/np.sqrt((4*np.pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
 
     if params['EOS_type'] == 'IGDE':
-        Lstar = Edot-Mdot*eos.H_e(rho, T)*Y(r, u) + Mdot*c**2   
+        # Lstar = Edot-Mdot*eos.H_e(rho, T)*Y(r, u) + Mdot*c**2  
+        Lstar = solve_energy(r,u,T) 
     else:
-        Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2    
+        # Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2  
+        Lstar = solve_energy(r,u,T)  
 
     if not return_all:
         return u, rho, Lstar
     else:
 
+        lam,_,R = FLD_Lam(Lstar,r,u,T,return_params=True)
+
         if params['EOS_type'] == 'IGDE':
             mach = u/np.sqrt(B_e(rho,T))
             phi = np.sqrt(A_e(rho,T))*mach + 1/(np.sqrt(A_e(rho,T))*mach)
-            P = eos.pressure_e(rho, T) 
+            P = eos.pressure_e(rho, T, lam, R) 
         else:
             mach = u/np.sqrt(B(T))
             phi = np.sqrt(A(T))*mach + 1/(np.sqrt(A(T))*mach)
-            P = eos.pressure(rho, T)    
+            P = eos.pressure(rho, T, lam, R)    
 
         L = Lcomoving(Lstar,r,u)
         cs = np.sqrt(eos.cs2(T))
         taus = taustar(r,rho,T)
-        lam = FLD_Lam(Lstar,r,u,T)
+    
         return u, rho, phi, Lstar, L, P, cs, taus, lam
    
 
@@ -374,12 +413,15 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 
     inic = [T95, 0.95*rs]
 
-    def hit_Pinner(rho,y):              # Inner boundary condition
+    def hit_Pinner(rho,y):              
+        # Inner boundary condition
+        # Will be optically thick there so no worries with FLD
+
         T = y[0]
         if params['EOS_type'] == 'IGDE':
-            P = eos.pressure_e(rho,T)
+            P = eos.pressure_e(rho,T,lam=1/3,R=0)
         else:
-            P = eos.pressure(rho,T)
+            P = eos.pressure(rho,T,lam=1/3,R=0)
         return P-P_inner
     hit_Pinner.terminal = True
 
@@ -445,9 +487,9 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
 Wind = namedtuple('Wind',
             ['rs','r','T','rho','u','phi','Lstar','L','P','cs','taus','lam'])  
 
-def setup_globals(params,logMdot,Verbose=False,return_them=False):
+def setup_globals(root,logMdot,Verbose=False,return_them=False):
     global Mdot, Edot, Ts, rs, verbose
-    Mdot, Edot, Ts, verbose = 10**logMdot, params[0]*LEdd, 10**params[1],Verbose
+    Mdot, Edot, Ts, verbose = 10**logMdot, root[0]*LEdd, 10**root[1],Verbose
     rs = rSonic(Ts)
     if return_them:
         return Mdot, Edot, Ts, rs, verbose
@@ -626,10 +668,10 @@ def OuterBisection(rend=1e9,tol=1e-5):
     return R,T,Phi
 
 
-def MakeWind(params, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
+def MakeWind(root, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and logTs'''
 
-    setup_globals(params,logMdot,Verbose)
+    setup_globals(root,logMdot,Verbose)
 
     if verbose: 
         print('\nMaking a wind for logMdot=%.2f, logTs=%.5f, Edot/Ledd=%.5f'
