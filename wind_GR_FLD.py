@@ -5,7 +5,7 @@ Version with flux-limited diffusion : transitions to optically thin
 
 import sys
 import numpy as np
-from scipy.optimize import brentq
+from scipy.optimize import brentq,fsolve,toms748,root_scalar
 from scipy.integrate import solve_ivp,quad
 from collections import namedtuple
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS 
@@ -25,7 +25,10 @@ if params['FLD'] == False:
     sys.exit('This script is for FLD calculations')
 
 # Generate EOS class and methods
-eos = physics.EOS_FLD(params['comp'])
+if params['Prad'] == 'exact':
+    eos = physics.EOS_FLD(params['comp'])
+else:
+    eos = physics.EOS(params['comp'])
 
 # Mass-dependent parameters
 M,RNS,y_inner = params['M'],params['R'],params['y_inner']
@@ -36,7 +39,7 @@ g = GM/(RNS*1e5)**2 * ZZ
 P_inner = g*y_inner
 
 # Maximum density 
-rhomax = 1e6
+rhomax = 1e7
 
 # ------------------------- General Relativity -------------------------------
 
@@ -55,62 +58,70 @@ def Lcrit(r,rho,T): # local critical luminosity
 
 def FLD_Lam(Lstar,r,v,T,return_params=False):
 
+    L = Lcomoving(Lstar,r,v)
+    Flux = L/(4*np.pi*r**2)
+    alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
+
     if isinstance(Lstar, (list,tuple,np.ndarray)): 
-        # for function to be able to take and return array
-        Lam = []
-        for lstari,ri,vi,Ti in zip(Lstar,r,v,T):
-            Lam.append(FLD_Lam(lstari,ri,vi,Ti))
-        return np.array(Lam)
-
+        if len(alpha[alpha>1])>0:
+            raise Exception("Causality warning F>cE at %d locations"%len(alpha[alpha>1]))
     else:
-        L = Lcomoving(Lstar,r,v)
-        Flux = L/(4*np.pi*r**2)
-        alpha = Flux/(c*arad*T**4)  # 0 opt thick, 1 opt thin
-
         if alpha>1:
-#            raise Exception
             # print('causality warning : F>cE')
             alpha=1-1e-9
 
-        Lam = 1/12 * ( (2-3*alpha) + np.sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
-        
-        R = alpha/Lam # 0 thick, 1/lam->inf thin
+    Lam = 1/12 * ( (2-3*alpha) + np.sqrt(-15*alpha**2 + 12*alpha + 4) )  # 1/3 thick , 0 thin
+    R = alpha/Lam # 0 thick, 1/lam->inf thin
 
-        ## Quinn formula
-        # YY = Y(r,v)
-        # rho = Mdot/(4*np.pi*r**2*v*YY)
-        # Lam = 1/(3 + 2*YY/taustar(r,rho,T))
-
-        if return_params:
-            return Lam,alpha,R
-        else:
-            return Lam
+    if return_params:
+        return Lam,alpha,R
+    else:
+        return Lam
 
 
 def solve_energy(r,v,T):
 
-    # If radiation pressure depends on lambda, and thus on L, solving for the luminosity
-    # from energy conservation takes more than a single step
+    if params['Prad'] == 'simple':
 
-    # If fed arrays, need to go one by one
-    if isinstance(r, (list, tuple, np.ndarray)):
-        Lstar = []
-        for i in range(len(r)):
-            Lstar.append(solve_energy(r[i],v[i],T[i]))
+        # If Prad=aT^4 everywhere, the Edot equation is straightforward to solve for Lstar
+
+        rho = Mdot/(4*np.pi*r**2*Y(r, v)*v)
+
+        if params['EOS_type'] == 'IGDE':
+            return Edot - Mdot*Y(r,v)*eos.H_e(rho,T,lam=1/3,R=0)  
+        else:
+            return Edot - Mdot*Y(r,v)*eos.H(rho,T,lam=1/3,R=0)
+
+
+    elif params['Prad'] == 'exact':
+
+        # If Prad = (lambda+lambda^2*R^2)aT^4, the Edot equation is implicit
+
+        # If fed arrays, need to go one by one
+        if isinstance(r, (list, tuple, np.ndarray)):
+            Lstar = []
+            for i in range(len(r)):
+                Lstar.append(solve_energy(r[i],v[i],T[i]))
+            return Lstar    
+
+        rho = Mdot/(4*np.pi*r**2*Y(r, v)*v)
+
+        if params['EOS_type'] == 'IGDE':
+            Lstar1 = Edot - Mdot*eos.H_e(rho, T, lam=1/3, R=0)*Y(r, v)   # optically thick
+            Lstar2 = Edot - Mdot*eos.H_e(rho, T, lam=1e-10, R=1e10)*Y(r, v)  # optically thin
+            def energy_error(Lstar):
+                Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+                return Edot - Mdot*eos.H_e(rho, T, Lam, R)*Y(r, v) - Lstar
+        
+        else:
+            Lstar1 = Edot - Mdot*eos.H(rho, T, lam=1/3, R=0)*Y(r, v)   # optically thick
+            Lstar2 = Edot - Mdot*eos.H(rho, T, lam=1e-10, R=1e10)*Y(r, v)  # optically thin
+            def energy_error(Lstar):
+                Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+                return Edot - Mdot*eos.H(rho, T, Lam, R)*Y(r, v) - Lstar
+
+        Lstar = brentq(energy_error, Lstar1, Lstar2, xtol=1e-6, rtol=1e-8) #brentq is fastest
         return Lstar
-
-    rho = Mdot/(4*np.pi*r**2*Y(r, v)*v)
-
-    Lstar1 = Edot - Mdot*eos.H(rho, T, lam=1/3, R=0)*Y(r, v) + Mdot*c**2  # optically thick
-    Lstar2 = Edot - Mdot*eos.H(rho, T, lam=1e-10, R=1e10)*Y(r, v) + Mdot*c**2  # optically thin
-
-    def energy_error(Lstar):
-        Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
-        return Edot - Mdot*eos.H(rho, T, Lam, R)*Y(r, v) + Mdot*c**2 - Lstar
-
-    Lstar = brentq(energy_error, Lstar1, Lstar2)
-    return Lstar
-
 
 # -------------------------- Paczynski&Proczynski ----------------------------
 
@@ -133,13 +144,13 @@ def A(T):  # eq 5a
 def B(T):
     return eos.cs2(T)
 
-def C(Lstar, T, r, rho, v):  # eq 5c, but modified because of FLD
+def C(Lstar, T, r, rho, v):  
 
-    Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+    lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
     L = Lcomoving(Lstar,r,v)
 
     return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * \
-            (1 + eos.Beta(rho,T,Lam,R)/(12*Lam*(1-eos.Beta(rho,T,Lam,R))))
+            (1 + eos.Beta(rho,T, lam=lam, R=R)/(12*lam*(1-eos.Beta(rho,T, lam=lam, R=R))))
 
 
 # --------------------- Degenerate electron corrections --------------------
@@ -156,14 +167,14 @@ def B_e(rho,T):
 
 def C_e(Lstar, T, r, rho, v):  
 
-    Lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+    lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
     L = Lcomoving(Lstar,r,v)
 
     _,_,[alpha1,_,_] = eos.electrons(rho,T)
-    bi,be = eos.Beta_I(rho, T, Lam, R), eos.Beta_e(rho, T, Lam, R)
+    bi,be = eos.Beta_I(rho, T, lam=lam, R=R), eos.Beta_e(rho, T, lam=lam, R=R)
 
     return 1/Y(r,v) * L/LEdd * eos.kappa(rho,T)/eos.kappa0 * GM/r * \
-            (1 + (bi + alpha1*be)/(12*Lam*(1-bi-be)))
+            (1 + (bi + alpha1*be)/(12*lam*(1-bi-be)))
 
 # ------------------------------- u(phi) ------------------------------------
 
@@ -230,6 +241,7 @@ def rSonic(Ts):
         npoints += 10
     # print('sonic: rkeep1 = %.3e \t rkeep2 = %.3e'%(rkeep1,rkeep2))
     # global rs
+
     rs = brentq(numerator, rkeep1, rkeep2, args=(Ts, vs), maxiter=100000)
     return rs
 
@@ -247,15 +259,13 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
         u = uphi(phi, T, subsonic)
 
     rho = Mdot/(4*np.pi*r**2*u*Y(r, u))
-
-    # Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2 
     Lstar = solve_energy(r,u,T)   
-    # eq 1c, modified for the redefinition of Edot
+
     if not return_all:
         return u, rho, phi, Lstar
     else:
-        lam,_,R = FLD_Lam(Lstar,r,u,T,return_params=True)
-        P = eos.pressure(rho, T, lam, R)
+        lam,_,R = FLD_Lam(Lstar,r,v,T,return_params=True)
+        P = eos.pressure(rho, T, lam=lam, R=R)
         L = Lcomoving(Lstar,r,u)
         cs = np.sqrt(eos.cs2(T))
         taus = taustar(r,rho,T)
@@ -263,20 +273,13 @@ def calculateVars_phi(r, T, phi, subsonic=False, return_all=False):
 
 
 def calculateVars_rho(r, T, rho, return_all=False): 
-    # Will consider degenerate electrons if EOS_type is set to 'IGDE'
 
     # At the end rho will be given as an array
     if isinstance(rho, (list, tuple, np.ndarray)):
         r, T, rho = np.array(r), np.array(T), np.array(rho)  
 
     u = Mdot/np.sqrt((4*np.pi*r**2*rho)**2*Swz(r) + (Mdot/c)**2)
-
-    if params['EOS_type'] == 'IGDE':
-        # Lstar = Edot-Mdot*eos.H_e(rho, T)*Y(r, u) + Mdot*c**2  
-        Lstar = solve_energy(r,u,T) 
-    else:
-        # Lstar = Edot-Mdot*eos.H(rho, T)*Y(r, u) + Mdot*c**2  
-        Lstar = solve_energy(r,u,T)  
+    Lstar = solve_energy(r,u,T)   
 
     if not return_all:
         return u, rho, Lstar
@@ -287,11 +290,11 @@ def calculateVars_rho(r, T, rho, return_all=False):
         if params['EOS_type'] == 'IGDE':
             mach = u/np.sqrt(B_e(rho,T))
             phi = np.sqrt(A_e(rho,T))*mach + 1/(np.sqrt(A_e(rho,T))*mach)
-            P = eos.pressure_e(rho, T, lam, R) 
+            P = eos.pressure_e(rho, T, lam=lam, R=R) 
         else:
             mach = u/np.sqrt(B(T))
             phi = np.sqrt(A(T))*mach + 1/(np.sqrt(A(T))*mach)
-            P = eos.pressure(rho, T, lam, R)    
+            P = eos.pressure(rho, T, lam=lam, R=R)    
 
         L = Lcomoving(Lstar,r,u)
         cs = np.sqrt(eos.cs2(T))
@@ -301,6 +304,7 @@ def calculateVars_rho(r, T, rho, return_all=False):
    
 
 def dr(r, y, subsonic):
+
     ''' Calculates the derivatives of T and phi by r '''
 
     T, phi = y[:2]
@@ -348,7 +352,7 @@ def drho(rho, y):
 
 # ------------------------------ Integration ---------------------------------
 
-def outerIntegration(r0,T0,phi0,rmax=1e10):
+def outerIntegration(r0, T0, phi0, rmax=1e10):
     ''' Integrates out from r0 to rmax tracking T and phi '''
 
     if verbose:
@@ -412,6 +416,8 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         print('**** Running innerIntegration RHO ****')
 
     inic = [T95, 0.95*rs]
+
+    flag_u0 = 0
 
     def hit_Pinner(rho,y):              
         # Inner boundary condition
@@ -489,7 +495,8 @@ Wind = namedtuple('Wind',
 
 def setup_globals(root,logMdot,Verbose=False,return_them=False):
     global Mdot, Edot, Ts, rs, verbose
-    Mdot, Edot, Ts, verbose = 10**logMdot, root[0]*LEdd, 10**root[1],Verbose
+    Mdot, Ts, verbose = 10**logMdot, 10**root[1],Verbose
+    Edot = root[0]*LEdd + Mdot*c**2    # the true edot (different than old & optically thick versions)
     rs = rSonic(Ts)
     if return_them:
         return Mdot, Edot, Ts, rs, verbose
@@ -668,14 +675,14 @@ def OuterBisection(rend=1e9,tol=1e-5):
     return R,T,Phi
 
 
-def MakeWind(root, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
+def MakeWind(root, logMdot, Verbose=0, IgnoreErrors = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and logTs'''
 
     setup_globals(root,logMdot,Verbose)
 
     if verbose: 
-        print('\nMaking a wind for logMdot=%.2f, logTs=%.5f, Edot/Ledd=%.5f'
-                %(logMdot,np.log10(Ts),Edot/LEdd))
+        print('\nMaking a wind for logMdot=%.2f, logTs=%.5f, (Edot-Mdotc2)/Ledd=%.5f'
+                %(logMdot,np.log10(Ts),(Edot-Mdot*c**2)/LEdd))
 
     # Start by finding the sonic point
     rs = rSonic(Ts)
@@ -684,59 +691,54 @@ def MakeWind(root, logMdot, mode='rootsolve', Verbose=0, IgnoreErrors = False):
         print('For log10Ts = %.2f, located sonic point at log10r = %.2f' %
               (np.log10(Ts), np.log10(rs)))
 
-    if mode == 'rootsolve':
-        sys.exit("Rootsolving is done in RootFinding_FLD.py")
+    # Outer integration
+    r_outer,T_outer, phi_outer = OuterBisection()
+    _,rho_outer,_,_ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, 
+                        subsonic=False)
 
-    elif mode == 'wind': 
+    # Sonic point changes slightly in the bisection process
+    Tsnew,rsnew = T_outer[0], r_outer[0]
+    print('Change in sonic point (caused by error in Edot-Ts relation interpolation)')
+    print('root:\t Ts = %.5e \t rs = %.5e'%(Ts,rs))
+    print('new:\t  Ts = %.5e \t rs = %.5e'%(Tsnew,rsnew))
+    print('Judge if this is a problem or not')
+    rs = rsnew
 
-        # Outer integration
-        r_outer,T_outer, phi_outer = OuterBisection()
-        _,rho_outer,_,_ = calculateVars_phi(r_outer, T_outer, phi=phi_outer, 
-                            subsonic=False)
+    # First inner integration
+    r95 = 0.95*rs
+    # r_inner1 = np.linspace(rs, r95, 500)
+    r_inner1 = np.linspace(0.99*rs, r95, 30) # ignore data in 1% around rs
+    result_inner1 = innerIntegration_r()
+    T95, _ = result_inner1.sol(r95)
+    T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
 
-        # Sonic point changes slightly in the bisection process
-        Tsnew,rsnew = T_outer[0], r_outer[0]
-        print('Change in sonic point (caused by error in Edot-Ts relation interpolation)')
-        print('root:\t Ts = %.5e \t rs = %.5e'%(Ts,rs))
-        print('new:\t  Ts = %.5e \t rs = %.5e'%(Tsnew,rsnew))
-        print('Judge if this is a problem or not')
-        rs = rsnew
+    _,rho_inner1,_,_ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, 
+                            subsonic=True)
+    rho95 = rho_inner1[-1]
 
-        # First inner integration
-        r95 = 0.95*rs
-        # r_inner1 = np.linspace(rs, r95, 500)
-        r_inner1 = np.linspace(0.99*rs, r95, 30) # ignore data in 1% around rs
-        result_inner1 = innerIntegration_r()
-        T95, _ = result_inner1.sol(r95)
-        T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
+    # Second inner integration 
+    result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
+    rho_inner2 = np.logspace(np.log10(rho95) , np.log10(result_inner2.t[-1]), 2000)
+    T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
+    
 
-        _,rho_inner1,_,_ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, 
-                                subsonic=True)
-        rho95 = rho_inner1[-1]
+    # Attaching arrays for r,rho,T from surface to photosphere  
+    #  (ignoring first point in inner2 because duplicate values at r=r95)
+    r_inner = np.append(np.flip(r_inner2[1:], axis=0),
+                        np.flip(r_inner1, axis=0))
+    T_inner = np.append(np.flip(T_inner2[1:], axis=0),
+                        np.flip(T_inner1, axis=0))
+    rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
+                        np.flip(rho_inner1, axis=0))
 
-        # Second inner integration 
-        result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-        rho_inner2 = np.logspace(np.log10(rho95) , np.log10(result_inner2.t[-1]), 2000)
-        T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
-        
+    r = np.append(r_inner, r_outer)
+    T = np.append(T_inner, T_outer)
+    rho = np.append(rho_inner, rho_outer)
 
-        # Attaching arrays for r,rho,T from surface to photosphere  
-        #  (ignoring first point in inner2 because duplicate values at r=r95)
-        r_inner = np.append(np.flip(r_inner2[1:], axis=0),
-                            np.flip(r_inner1, axis=0))
-        T_inner = np.append(np.flip(T_inner2[1:], axis=0),
-                            np.flip(T_inner1, axis=0))
-        rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
-                            np.flip(rho_inner1, axis=0))
+    # Calculate the rest of the vars
+    u, rho, phi, Lstar, L, P, cs, taus, lam = calculateVars_rho(r, T, rho=rho, return_all=True)
 
-        r = np.append(r_inner, r_outer)
-        T = np.append(T_inner, T_outer)
-        rho = np.append(rho_inner, rho_outer)
-
-        # Calculate the rest of the vars
-        u, rho, phi, Lstar, L, P, cs, taus, lam = calculateVars_rho(r, T, rho=rho, return_all=True)
-
-        return Wind(rs, r, T, rho, u, phi, Lstar, L, P, cs, taus ,lam)
+    return Wind(rs, r, T, rho, u, phi, Lstar, L, P, cs, taus ,lam)
 
 
 

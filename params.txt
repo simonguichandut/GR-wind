@@ -3,17 +3,11 @@ M	1.4	[Msun]
 R	12	[km]
 
 --- Wind ---
-y_inner 1e8	[g/cm2]
-tau_out 3		
-comp	He	(H, He or Ni..)
-EOS     IGDE    (IG = ideal gas, IGDE = ideal gas degenerate electrons, POLYN = polytropic index N)
+y_inner 1e8	[g/cm2]	
+comp	He	    (H, He or Ni..)
+EOS     IG      (IG = ideal gas, IGDE = ideal gas degenerate electrons, POLYN = polytropic index N)
+tau_out 3	
 FLD    	1    	(boolean)    
-
---- Code ---
-mode	rootsolve	(rootsolve or wind)
-save	1		    (boolean)
-img	    .png		(.png,.pdf,.jpg)	 
-
-
+Prad    simple  (simple or exact)
 
 

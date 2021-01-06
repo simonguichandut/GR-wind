@@ -8,6 +8,11 @@ arad = 7.5657e-15
 c = 2.99792458e10
 mp = 1.67e-24
 
+# some functions have a **kwargs argument which is there so that dummy arguments can be 
+# put in the function call without adding errors. In one EOS, Beta could have 2 args, and in the
+# other it could have 4 args. With kwargs we can always call it with 4 args and the last 2 arguments
+# might just be dummy arguments. In that case these last two arguments must be called with key=arg (kwarg)
+
 
 class EOS:
 
@@ -77,20 +82,20 @@ class EOS:
         return kB*T/(self.mu*mp)
 
     # P and E for : Ideal gas + radiation
-    def pressure(self, rho, T):  
+    def pressure(self, rho, T, **kwargs):  
         return rho*self.cs2(T) + arad*T**4/3.0 
 
-    def internal_energy(self, rho, T):  
+    def internal_energy(self, rho, T, **kwargs):  
         return 1.5*self.cs2(T)*rho + arad*T**4 
 
     # Pressure ratio
-    def Beta(self, rho, T):  # pressure ratio 
+    def Beta(self, rho, T, **kwargs):  # pressure ratio 
         Pg = rho*self.cs2(T)
         Pr = arad*T**4/3.0
         return Pg/(Pg+Pr)
 
     # Rest energy + enthalpy
-    def H(self, rho, T): 
+    def H(self, rho, T, **kwargs): 
         return c**2 + (self.internal_energy(rho, T) + self.pressure(rho, T))/rho
 
 
@@ -117,25 +122,25 @@ class EOS:
         return kB*T/(self.mu_I*mp)
 
     # P and E for : Ideal gas + radiation + electrons
-    def pressure_e(self, rho, T):
+    def pressure_e(self, rho, T, **kwargs):
         pe,_,_ = self.electrons(rho,T)
         return rho*self.cs2_I(T) + arad*T**4/3.0 + pe
 
-    def internal_energy_e(self, rho, T): 
+    def internal_energy_e(self, rho, T, **kwargs): 
         _,Ue,_ = self.electrons(rho,T)
         return 1.5*self.cs2_I(T)*rho + arad*T**4 + Ue
 
     # Pressure ratios
-    def Beta_I(self, rho, T):
+    def Beta_I(self, rho, T, **kwargs):
         pg = rho*self.cs2_I(T)
         return pg/self.pressure_e(rho,T)
 
-    def Beta_e(self, rho, T):
+    def Beta_e(self, rho, T, **kwargs):
         pe,_,_ = self.electrons(rho,T)
         return pe/self.pressure_e(rho,T)
 
     # Rest energy + enthalpy
-    def H_e(self, rho, T):  # eq 2c
+    def H_e(self, rho, T, **kwargs):  # eq 2c
         return c**2 + (self.internal_energy_e(rho, T) + self.pressure_e(rho, T))/rho
 
 

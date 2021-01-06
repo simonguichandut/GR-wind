@@ -1,3 +1,8 @@
+# !! Disclaimer. This file is just a bunch of scripts for navigating the complicated parameter spcae
+# of these wind models, with a lot of tricks to speed up the computation time. Odds of understanding
+# all the technicalities are slim, better to contact me directly :)
+
+
 import numpy as np
 import sys
 import os
@@ -42,6 +47,75 @@ def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner s
     else:
         return innerIntegration_rho(rho95, T95)
 
+    
+def bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=10,tol=1e-5,Verbose=0):
+
+    # Find values of logTs that bound the true wind model that can be integrated to infinity
+    # Begins with initial bound values logTsa0 and logTsb0. outerIntegration with a should 
+    # reach a termination event (sol.status=1), with a should crash with stepsize->0 (sol.status=-1)
+
+    print('\nFinding Ts for Edot/LEdd = %.10f'%Edot_LEdd)
+
+    # If roots already exist for this Mdot, we can predict where Ts might be, and use that
+    # to avoid wasting time searching where it will not be
+    try:
+        logMdots,roots = IO.load_roots()
+        elts = [i for i in range(len(logMdots)) if logMdots[i]>logMdot] # grab Mdots larger than current one
+        if len(elts)>=2:
+            x1,x2 = logMdots[elts[0]], logMdots[elts[1]]
+            y1,y2 = roots[elts[0]][1], roots[elts[1]][1]
+            # Interpolate a line to predict logTs for our Mdot
+            logTs_pred = (y2-y1)/(x2-x1) * (logMdot-x1) + y1
+        else:
+            logTs_pred = None 
+    except:
+        logTs_pred = None
+
+    a,b = logTsa0,logTsb0
+    logTsvals = np.linspace(a,b,npts_Ts)
+    logTsvals = np.round(logTsvals,9)
+
+    # Begin search
+    while abs(b-a)>tol:
+        print('%.8f    %.8f'%(a,b))
+
+        for logTs in logTsvals[1:-1]:
+
+            print('Current: %.8f'%logTs, end="\r")
+
+            try:
+                res,rs = run_outer(logMdot,Edot_LEdd,logTs,Verbose)
+            except Exception as E:
+                print(E)
+                print('Exiting...')
+                cont = False
+                break
+
+            else:
+                if res.status==1:
+                    a = logTs
+                elif res.status==0:
+                    raise Exception('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
+                else: # res.status=-1
+                    b = logTs
+                    break
+
+        if logTs_pred is not None:
+            if a - logTs_pred > 0.5:
+                print('Bottom logTs (%.2f) too far from where the root will realistically be (prediction from two other Mdots is logTs=%.2f'%(a,y))
+                return None,None
+
+        if a==b:
+            print('border values equal (and did not hit rs<RNS, maybe allow higher Ts). Exiting')
+            break
+
+        logTsvals = np.linspace(a,b,6)      
+
+    print('\nok')
+    return a,b
+
+
+# bound_Ts_for_Edot(18,1.03222222,7.61,7.72)
 
 
 def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
@@ -56,94 +130,87 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
     Tsvals = []
     cont = True
 
-    if IO.load_EdotTsrel(logMdot)[0] is True: #relation already exists, will use it to predict initial a,b bounds on Ts
-        _,Edotrel,Tsrel,_ = IO.load_EdotTsrel(logMdot)
-
-        if Edotrel[0]>Edotmin:
-            b=Tsrel[0]
-            a=b-0.5
-        else:
-            ix= [i for i in range(len(Edotrel)) if Edotrel[i]<Edotmin][-1] # this gives the index of the Edot in Edotvals which is closest (but lower than) Edotmin
-            a = Tsrel[ix]
-            b = a+0.5
-        npts_Ts = 50 # if we are here we are really refining the param space
-
-    else:
-        a,b = 6.1,8
-        npts_Ts=10
+    rel = IO.load_EdotTsrel(logMdot)
 
     for Edot_LEdd in Edotvals:
-        print('\nFinding Ts for Edot/LEdd = %.10f'%Edot_LEdd)
 
-        logTsvals = np.linspace(a,b,npts_Ts)
-        logTsvals = np.round(logTsvals,9)
+        if rel[0] is True: #relation already exists, will use it to predict initial a,b bounds on Ts
+            _,Edotrel,Tsrel,_ = rel
 
-        while abs(b-a)>tol and cont:
-            print('%.8f    %.8f'%(a,b))
+            ilower = [i for i in range(len(Edotrel)) if Edotrel[i]<Edot_LEdd] # gives all the indexes of all Edots which are lower than current
+            iupper = [i for i in range(len(Edotrel)) if Edotrel[i]>Edot_LEdd] # higher than current
 
-            for logTs in logTsvals[1:-1]:
+            if len(ilower)>=1: # current Edot is low-bounded
+                logTsa0 = Tsrel[ilower[-1]]
 
-                print('Current: %.8f'%logTs, end="\r")
+                if len(iupper)>=1 : # current Edot is bounded on both sides
+                    logTsb0 = Tsrel[iupper[0]]
+                    npts_Ts = 50 # if we are here we are really refining the param space
 
-                try:
-                    res,rs = run_outer(logMdot,Edot_LEdd,logTs,Verbose)
-                except Exception as E:
-                    print(E)
-                    print('Exiting...')
-                    cont = False
-                    break
+                else:               # current Edot is low-bounded but not up-bounded
+                    logTsb0 = logTsa0+0.5
+                    npts_Ts = 10
 
-                else:
-                    if res.status==1:
-                        a = logTs
-                    elif res.status==0:
-                        raise Exception('Reached end of integration interval (r=%.3e) without diverging!'%res.t[-1])
-                    else: # res.status=-1
-                        b = logTs
-                        break
+            elif len(iupper)>=1 : # current Edot is up-bounded but not low-bounded
+                logTsb0 = Tsrel[iupper[0]]
+                logTsa0 = logTsb0-0.5
+                npts_Ts = 10
 
-            logTsvals = np.linspace(a,b,6)      
+        else:
+            logTsa0,logTsb0 = 6.1,8
+            npts_Ts=10
 
-            # To save time, check that where we are about to search is worth it.
-            # We can take previous roots, if they exist, interpolate Edot and Ts
-            # and evaluate the interpolation at the current Edot. If the interval
-            # Ts interval [a,b]that we are checking now is very far from the 
-            # interpolation, we can exit here to save time
-            try:
-                logMdots,roots = IO.load_roots()
-                elts = [i for i in range(len(logMdots)) if logMdots[i]>logMdot]
-                if len(elts)>=2:
-                    x1,x2 = logMdots[elts[0]], logMdots[elts[1]]
-                    y1,y2 = roots[elts[0]][1], roots[elts[1]][1] # grabbing the Ts vals
-                    # let's interpolate a line to predict logTs for our Mdot
-                    y = (y2-y1)/(x2-x1) * (logMdot-x1) + y1
-                    # Now check if our bottom bound (a) is very far from the prediction)
-                    # in logspace, 0.5 is very far, too far for the root to be there
-                    if a-y>0.5:
-                        print('Bottom Ts (%.2f) too far from where the root will realistically be (prediction from two other Mdots is logTs=%.2f'%(a,y))
-                        cont=False
-                        break
-            except:
-                pass
+        a,b = bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=npts_Ts,tol=tol,Verbose=Verbose)
 
-        # Take final sonic point temperature to be bottom value (the one that leads to Mach 1.  We know the real value is in between a and a+tol)
-        # Tsvals.append(a)
-
-        if cont==False:
-            break
-
-        if a==b:
-            print('border values equal (did not hit rs<RNS, maybe allow higher Ts). Exiting')
+        if a is None:
             break
 
         # Save one at a time
         IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b])
 
-        a,b = a,8  # next Edot, Ts will certainly be higher than this one
-        print('ok. Final logrs = %.3f'.ljust(20)%(np.log10(rs)))
-
     IO.clean_EdotTsrelfile(logMdot,warning=0)
 
+
+def Check_EdotTsrel(logMdot, recalculate=True):
+
+    # Suppose the EdotTsrel is slightly wrong, namely the solutions corresponding
+    # to logTsa and logTsb are not binding, they both crash in the same direction
+    # This could be because we changed the EOS or NS parameters, therefore the roots
+    # have moved a bit. Instead of starting from scratch, we can search around the 
+    # current EdotTsrel and just adjust it. This will save a lot of time.
+
+    _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(logMdot)
+
+    for i in range(len(Edotvals)):
+        sola,_ = run_outer(logMdot,Edotvals[i],TsvalsA[i])
+        solb,_ = run_outer(logMdot,Edotvals[i],TsvalsB[i])
+
+        if sola.status == 1 and solb.status == -1:
+            print('\nEdotTsrel file at Edot/LEdd=%.3f is OK!'%(Edotvals[i]))
+        else:
+            print('\nEdotTsrel file at Edot/LEdd=%.3f needs fixing'%(Edotvals[i]))
+
+            if recalculate is True:
+
+                logTsa,logTsb = TsvalsA[i],TsvalsB[i]
+                print('Initial bounds of logTs : %.8f   %.8f'%(logTsa,logTsb))
+                if sola.status == -1:
+                    while sola.status == -1:
+                        logTsa -= 2e-2
+                        sola,_ = run_outer(logMdot,Edotvals[i],logTsa)
+
+                elif solb.status == 1:
+                    while solb.status == 1:
+                        logTsb += 2e-2
+                        solb,_ = run_outer(logMdot,Edotvals[i],logTsb)
+
+                a,b = bound_Ts_for_Edot(logMdot,Edotvals[i],logTsa,logTsb)
+                print('New bounds of logTs : %.8f   %.8f'%(a,b))
+
+                if a is not None:
+                    IO.save_EdotTsrel(logMdot,[Edotvals[i]],[a],[b])
+
+    IO.clean_EdotTsrelfile(logMdot,warning=0)
 
 
 def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
@@ -309,7 +376,7 @@ def driver(logmdots):
                 success.append(logMdot)
                 save_root(logMdot,root)
 
-        except:
+        except Exception as e:
                 problems.append(logMdot)
                 print('\n',e)
                 print('\nPROBLEM WITH LOGMDOT = ',logMdot,'\nTrying again with verbose and checking EdotTs rel...\n\n')
