@@ -17,10 +17,13 @@ eos = physics.EOS(IO.load_params()['comp'])
 def Swz(r):  # Schwartzchild metric term
     return (1-2*GM/c**2/r)    
 
-def Rphot_Teff(logMdot):
+def Rphot_Teff(logMdot, wind=None):
     # defines the photosphere as the location where T=Teff, i.e. L=4pi Rph^2 sigmaT^4
 
-    w = IO.read_from_file(logMdot)
+    if wind == None:
+        w = IO.read_from_file(logMdot)
+    else:
+        w = wind
     F = w.L/(4*np.pi*w.r**2)
     alpha = F/(arad*c*w.T**4)
 
@@ -28,10 +31,14 @@ def Rphot_Teff(logMdot):
 
 
 
-def Rphot_trapz(logMdot):
+def Rphot_trapz(logMdot, wind=None):
     # integrates in to find the photosphere with trapz
 
-    w = IO.read_from_file(logMdot)
+    if wind == None:
+        w = IO.read_from_file(logMdot)
+    else:
+        w = wind
+
     kapparho = eos.kappa(w.rho,w.T) * w.rho / Swz(w.r)**(0.5)
     i = 2
     while True:
@@ -64,8 +71,8 @@ def Rphot_trapz(logMdot):
 
     return Rph23,Rph1#,Rph2,Rph3
 
-def Rphot_tau_twothirds(logMdot):
-    return Rphot_trapz(logMdot)[0]
+def Rphot_tau_twothirds(logMdot, wind=None):
+    return Rphot_trapz(logMdot, wind=wind)[0]
 
 
 def Rphot_interpolate(logMdot):
@@ -77,9 +84,13 @@ def Rphot_interpolate(logMdot):
     # return Rph
 
 
-def Rphot_pac(logMdot):
+def Rphot_pac(logMdot, wind=None):
     # taustar = 3
-    w = IO.read_from_file(logMdot)
+    if wind == None:
+        w = IO.read_from_file(logMdot)
+    else:
+        w = wind
+        
     return w.r[np.argmin(abs(w.taus-3))]
 
 

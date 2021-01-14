@@ -37,7 +37,6 @@ def run_outer(logMdot,Edot_LEdd,logTs,Verbose=0):  # full outer solution from so
 def run_inner(logMdot,Edot_LEdd,logTs,Verbose=0,solution=False):  # full inner solution from sonic point
     global Mdot,Edot,Ts,verbose,rs
     Mdot, Edot, Ts, rs, verbose = setup_globals([Edot_LEdd,logTs],logMdot,Verbose=Verbose,return_them=True)
-    rs = rSonic(Ts)
     sol_inner1 = innerIntegration_r()
     T95,phi95 = sol_inner1.sol(0.95*rs)
     _,rho95,_,_ = calculateVars_phi(0.95*rs, T95, phi=phi95, subsonic=True)
@@ -88,8 +87,7 @@ def bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=10,tol=1e-5,Verb
             except Exception as E:
                 print(E)
                 print('Exiting...')
-                cont = False
-                break
+                return None,None
 
             else:
                 if res.status==1:
@@ -101,8 +99,8 @@ def bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=10,tol=1e-5,Verb
                     break
 
         if logTs_pred is not None:
-            if a - logTs_pred > 0.5:
-                print('Bottom logTs (%.2f) too far from where the root will realistically be (prediction from two other Mdots is logTs=%.2f'%(a,y))
+            if a - logTs_pred > 0.3:
+                print('Bottom logTs (%.2f) too far from where the root will realistically be (prediction from two other Mdots is logTs=%.2f'%(a,logTs_pred))
                 return None,None
 
         if a==b:
@@ -145,7 +143,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
 
                 if len(iupper)>=1 : # current Edot is bounded on both sides
                     logTsb0 = Tsrel[iupper[0]]
-                    npts_Ts = 50 # if we are here we are really refining the param space
+                    npts_Ts = 20 # if we are here we are really refining the param space
 
                 else:               # current Edot is low-bounded but not up-bounded
                     logTsb0 = logTsa0+0.5
@@ -157,8 +155,8 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
                 npts_Ts = 10
 
         else:
-            logTsa0,logTsb0 = 6.1,8
-            npts_Ts=10
+            logTsa0,logTsb0 = 6.2,8
+            npts_Ts=20
 
         a,b = bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=npts_Ts,tol=tol,Verbose=Verbose)
 
@@ -167,6 +165,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
 
         # Save one at a time
         IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b])
+        rel = IO.load_EdotTsrel(logMdot)
 
     IO.clean_EdotTsrelfile(logMdot,warning=0)
 
@@ -179,6 +178,7 @@ def Check_EdotTsrel(logMdot, recalculate=True):
     # have moved a bit. Instead of starting from scratch, we can search around the 
     # current EdotTsrel and just adjust it. This will save a lot of time.
 
+    IO.clean_EdotTsrelfile(logMdot, warning=0)
     _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(logMdot)
 
     for i in range(len(Edotvals)):
@@ -257,7 +257,8 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
         if len(Edotvals)==1:
             get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[0]+0.001,npts=5)
         else:
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[-1]+0.001,npts=5)
+            diff = Edotvals[-1]-Edotvals[0]
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]+0.2*diff,Edotmax=Edotvals[-1]-0.2*diff,npts=3)
         raise Exception('Call Again')
 
     else:
@@ -273,22 +274,37 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
 
     if Verbose: print('Searching root on Edot,Ts relation based on inner boundary error')
 
+    flag_300 = (False,)
     erra = Err(Edotvals[0])
     for Edot in Edotvals[:0:-1]: # cycle through the values in reverse order
         errb = Err(Edot)
-        if erra*errb < 0: # different sign, means a root is in the interval
+
+        if errb == -300: # a special error we might have to deal with
+            flag_300 = (True, Edotvals.index(Edot))  
+
+        elif erra*errb < 0: # different sign, means a root is in the interval
             print('\nroot present')
             break
 
     if erra*errb > 0: # same sign (we'll enter this if we didn't break last loop)
-        diff = Edotvals[1]-Edotvals[0]
-        if erra<0:
-            print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-8,npts=5*depth)
+
+        if not flag_300:
+            if erra<0:
+                print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
+                diff = Edotvals[1]-Edotvals[0]
+                get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-8,npts=2*depth)
+            else:
+                print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
+                diff = Edotvals[-1]-Edotvals[-2]
+                get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8,Edotmax=Edotvals[-1]+diff,npts=2*depth)
+
         else:
-            print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8,Edotmax=Edotvals[-1]+diff,npts=5*depth)
-#        raise Exception('No root in the interval')
+            print('\nThe only negative errors (rb<RNS) don''t converge, need to refine')
+            i = flag_300[1]
+            diff = Edotvals[i]-Edotvals[i-1]
+            get_TsEdotrel(logMdot,Edotmin=Edotvals[i-1]+0.25*diff,Edotmax=Edotvals[i-1]+0.75*diff,npts=2*depth)
+
+
         raise Exception('Call Again')
 
     else:
@@ -298,7 +314,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
         return root
 
 
-def ImproveRoot(logMdot, eps=0.001):
+def ImproveRoot(logMdot, eps=0.1, npts=5):
 
     ''' Rootfinding with the inner b.cond is done on a spline interpolation of 
     the Edot-Ts relation. When that root is obtained, it's not exact because of 
@@ -311,6 +327,8 @@ def ImproveRoot(logMdot, eps=0.001):
     root found initially and then re-do the rootfinding.
     '''
 
+    print('\n\n ** Improving root for logMdot = %.2f ** '%logMdot)
+
     logMdots,roots = IO.load_roots()
     if logMdot not in logMdots:
         sys.exit("root doesn't exist yet")
@@ -320,10 +338,10 @@ def ImproveRoot(logMdot, eps=0.001):
     _,Edots,_,_ = IO.load_EdotTsrel(logMdot)
     i = np.argwhere(np.array(Edots)>root[0])[0][0]
     diff = Edots[i]-Edots[i-1]
-    bound1 = Edots[i-1] + 0.1*diff
-    bound2 = Edots[i] - 0.1*diff
+    bound1 = Edots[i-1] + eps*diff
+    bound2 = Edots[i] - eps*diff
 
-    get_TsEdotrel(logMdot,Edotmin=bound1,Edotmax=bound2,npts=8)
+    get_TsEdotrel(logMdot,Edotmin=bound1,Edotmax=bound2,npts=npts)
     #get_TsEdotrel(logMdot,Edotmin=root[0]-eps,Edotmax=root[0]+eps,npts=8)
     IO.clean_EdotTsrelfile(logMdot,warning=0)
     root = RootFinder(logMdot,checkrel=False)
@@ -361,6 +379,9 @@ def driver(logmdots):
 
     if logmdots == 'all':
         logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
+
+    elif type(logmdots) == float or type(logmdots) == int:
+        logmdots = [logmdots]
 
     success, max_recursed, problems = [],[],[]
 

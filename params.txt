@@ -8,6 +8,6 @@ comp	He	    (H, He or Ni..)
 EOS     IG      (IG = ideal gas, IGDE = ideal gas degenerate electrons, POLYN = polytropic index N)
 tau_out 3	
 FLD    	1    	(boolean)    
-Prad    simple  (simple or exact)
+Prad    exact   (simple or exact)
 
 

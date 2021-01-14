@@ -483,7 +483,7 @@ def innerIntegration_rho(rho95, T95, returnResult=False):
         if flag_u0:
             return +100
         else:
-            return +300
+            return -300 # (should be a negative error because this is probably like a model that goes too far in)
 
 
 # -------------------------------- Wind --------------------------------------

@@ -49,64 +49,6 @@ def get_name():
 
     return name
 
-## fix some filenames
-
-# def findall(p, s):
-#     '''Yields all the positions of
-#     the pattern p in the string s.'''
-#     i = s.find(p)
-#     while i != -1:
-#         yield i
-#         i = s.find(p, i+1)
-
-# (_, _, filenames) = next(os.walk('roots/'))
-# for old_name in filenames:
-#     underscores = [i for i in findall('_',old_name)]
-#     new_name = old_name[:underscores[4]]
-#     new_name += '_y8'
-#     if 'FLD' in old_name:
-#         new_name += '_FLD'
-#     else:
-#         new_name += '_tau3'
-#     new_name += '.txt'
-#     # print(old_name,'\t\t',new_name)
-
-#     os.rename("roots/"+old_name, "roots/"+new_name)
-
-# (_, dirs, _) = next(os.walk('roots/FLD/'))
-# for old_name in dirs:
-#     underscores = [i for i in findall('_',old_name)]
-#     new_name = old_name[:underscores[3]]
-#     if 'exact' in old_name:
-#         new_name += '_exact'
-#     # print(old_name,'\t\t',new_name)
-
-#     os.rename("roots/FLD/"+old_name, "roots/FLD/"+new_name)
-
-# (_, dirs, _) = next(os.walk('results/'))
-# for old_name in dirs:
-#     underscores = [i for i in findall('_',old_name)]
-#     new_name = old_name[:underscores[3]]
-#     new_name += '_y8'
-#     if 'FLD' in old_name:
-#         new_name += '_FLD'
-#     else:
-#         new_name += '_tau3'
-#     # print(old_name,'\t\t',new_name)
-
-#     os.rename("results/"+old_name, "results/"+new_name)
-
-import shutil
-(_, _, filenames) = next(os.walk('roots/'))
-for old_name in filenames:
-    if 'IGDE' in old_name and 'FLD' in old_name:
-        new_name = old_name.replace('IGDE','IG')
-        # print(old_name,'\t\t',new_name)
-        # os.rename("roots/"+old_name, "roots/"+new_name)
-        shutil.copy('roots/'+old_name, 'roots/'+new_name)
-
-
-
 
 def save_root(logMdot,root):
 
@@ -322,30 +264,31 @@ def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB):
         # f.write('{:<.11f} \t {:<.11f} \t {:<.11f}\n'.format(
                 # edot, tsa, tsb))
 
-def load_EdotTsrel(logMdot):
+def load_EdotTsrel(logMdot, specific_file=None):
 
-    name = get_name()
-    i = name.find('FLD')
-    name = name[:i-1] + name[i+3:]
-    i = name.find('y')
-    name = name[:i-1] + name[i+2:]
-
-    filepath = 'roots/FLD/' + name + '/EdotTsrel_' + ('%.2f'%logMdot) + '.txt'
-    # filepath = 'roots/FLD/' + get_name() + '/EdotTsrel_' + str(logMdot) + '.txt'
-    if not os.path.exists(filepath):
-        return False,
-
+    if specific_file is not None:
+        filepath = specific_file
     else:
-        Edotvals, TsvalsA, TsvalsB = [],[],[]
-        with open(filepath,'r') as f:
-            next(f)
-            for line in f:
-                Edotvals.append(eval(line.split()[0]))
-                TsvalsA.append(eval(line.split()[1]))
-                TsvalsB.append(eval(line.split()[2]))
-        
-        return True,Edotvals,TsvalsA,TsvalsB
-        # note that Edotvals is (Edot-Mdotc^2)/LEdd, Tsvals is logTs
+        name = get_name()
+        i = name.find('FLD')
+        name = name[:i-1] + name[i+3:]
+        i = name.find('y')
+        name = name[:i-1] + name[i+2:]
+
+        filepath = 'roots/FLD/' + name + '/EdotTsrel_' + ('%.2f'%logMdot) + '.txt'
+        if not os.path.exists(filepath):
+            return False,
+
+    Edotvals, TsvalsA, TsvalsB = [],[],[]
+    with open(filepath,'r') as f:
+        next(f)
+        for line in f:
+            Edotvals.append(eval(line.split()[0]))
+            TsvalsA.append(eval(line.split()[1]))
+            TsvalsB.append(eval(line.split()[2]))
+    
+    return True,Edotvals,TsvalsA,TsvalsB
+    # note that Edotvals is (Edot-Mdotc^2)/LEdd, Tsvals is logTs
 
 
 def clean_EdotTsrelfile(logMdot,warning=1):
