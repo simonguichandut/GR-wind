@@ -31,18 +31,7 @@ analysis/spot_check/
 # Other compositions/eos
 results/Ni*
 results/H_*
-
-# Pure Optically thick results
-results/He_IGDE_M1.1_R10_tau3_y8
-results/He_IGDE_M1.1_R12_tau3_y8
-results/He_IGDE_M1.1_R13_tau3_y8
-results/He_IGDE_M1.4_R10_tau3_y8
-results/He_IGDE_M1.4_R12_tau3_y8
-results/He_IGDE_M1.4_R12_tau3_y9
-results/He_IGDE_M1.4_R13_tau3_y8
-results/He_IGDE_M2.0_R10_tau3_y8
-results/He_IGDE_M2.0_R12_tau3_y8
-results/He_IGDE_M2.0_R13_tau3_y8
+results/He_IGDE_*
 
 # Other things
 Plots.py
