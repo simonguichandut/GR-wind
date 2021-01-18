@@ -13,7 +13,6 @@ from wind_GR_FLD import *
 
 # import warnings
 # warnings.filterwarnings("ignore", category=RuntimeWarning) 
-from IO import save_root,clean_rootfile
 
 """
 Rootfinding is done differently in FLD than optically thick.  For every (Mdot,Edot), there is a single value of Ts 
@@ -116,7 +115,7 @@ def bound_Ts_for_Edot(logMdot,Edot_LEdd,logTsa0,logTsb0,npts_Ts=10,tol=1e-5,Verb
 # bound_Ts_for_Edot(18,1.03222222,7.61,7.72)
 
 
-def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
+def get_EdotTsrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10,save_decimals=8):
 
     # find the value of Ts that allow a solution to go to inf (to tol precision), for each value of Edot
 
@@ -164,7 +163,7 @@ def get_TsEdotrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10):
             break
 
         # Save one at a time
-        IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b])
+        IO.save_EdotTsrel(logMdot,[Edot_LEdd],[a],[b],decimals=save_decimals)
         rel = IO.load_EdotTsrel(logMdot)
 
     IO.clean_EdotTsrelfile(logMdot,warning=0)
@@ -224,12 +223,27 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
     if rel[0] is False:
         print('Edot-Ts relation file does not exist, creating..')
 
-        if logMdot < 18.0:
+        if logMdot >= 18.0:  # no real difficulties at high Mdot
+            get_EdotTsrel(logMdot,Verbose=Verbose)
+        elif logMdot < 18.0 and logMdot >= 17.2:
             # At low Mdots (~<18, high Edots go to high Ts quickly, hitting
             # the rs = RNS line and causing problems in rootfinding)
-            get_TsEdotrel(logMdot,Verbose=Verbose,Edotmax=1.03)
-        else:
-            get_TsEdotrel(logMdot,Verbose=Verbose)
+            get_EdotTsrel(logMdot,Verbose=Verbose,Edotmax=1.03)
+        
+        elif logMdot < 17.2:
+            # low Mdots are hard, it's best to narrow the search using previous roots
+            logMdots,roots = IO.load_roots()
+            elts = [i for i in range(len(logMdots)) if logMdots[i]>logMdot] # grab Mdots larger than current one
+            x1,x2 = logMdots[elts[0]], logMdots[elts[1]]
+            y1,y2 = roots[elts[0]][0], roots[elts[1]][0] # Edot values
+            # Interpolate a line to predict Edot for our Mdot
+            Edot_pred = (y2-y1)/(x2-x1) * (logMdot-x1) + y1
+            low_bound = Edot_pred - abs(Edot_pred-y1)/4
+            high_bound = Edot_pred + abs(Edot_pred-y1)/4
+            # input('Predicted Edot : %.6f. Will search from %.6f to %.6f'%(Edot_pred,low_bound,high_bound))
+            get_EdotTsrel(logMdot,Verbose=Verbose,Edotmin=low_bound,Edotmax=high_bound, npts=5)
+
+
 
         rel = IO.load_EdotTsrel(logMdot)
         print('\nDone!')
@@ -255,10 +269,10 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
     if len(Edotvals)<=3: # need at least 4 points for cubic spline
         print('Not enough points to interpolate spline, re-interpolating')
         if len(Edotvals)==1:
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[0]+0.001,npts=5)
+            get_EdotTsrel(logMdot,Edotmin=Edotvals[0]-0.001,Edotmax=Edotvals[0]+0.001,npts=5)
         else:
             diff = Edotvals[-1]-Edotvals[0]
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[0]+0.2*diff,Edotmax=Edotvals[-1]-0.2*diff,npts=3)
+            get_EdotTsrel(logMdot,Edotmin=Edotvals[0]+0.2*diff,Edotmax=Edotvals[-1]-0.2*diff,npts=3)
         raise Exception('Call Again')
 
     else:
@@ -269,6 +283,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
         logTs=rel_spline(Edot_LEdd)
         E = run_inner(logMdot,Edot_LEdd,logTs)
         print("Looking for root... Edot/LEdd=%.6f \t logTs=%.6f \t Error= %.6f"%(Edot_LEdd,logTs,E),end="\r")
+        # print("Looking for root... Edot/LEdd=%.10f \t logTs=%.10f \t Error= %.10f"%(Edot_LEdd,logTs,E))
         return E
 
 
@@ -292,17 +307,17 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
             if erra<0:
                 print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
                 diff = Edotvals[1]-Edotvals[0]
-                get_TsEdotrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-8,npts=2*depth)
+                get_EdotTsrel(logMdot,Edotmin=Edotvals[0]-diff,Edotmax=Edotvals[0]-1e-8,npts=2*depth)
             else:
                 print('\nOnly positive errors (rb>RNS)') # need higher Ts (higher Edot)
                 diff = Edotvals[-1]-Edotvals[-2]
-                get_TsEdotrel(logMdot,Edotmin=Edotvals[-1]+1e-8,Edotmax=Edotvals[-1]+diff,npts=2*depth)
+                get_EdotTsrel(logMdot,Edotmin=Edotvals[-1]+1e-8,Edotmax=Edotvals[-1]+diff,npts=2*depth)
 
         else:
             print('\nThe only negative errors (rb<RNS) don''t converge, need to refine')
             i = flag_300[1]
             diff = Edotvals[i]-Edotvals[i-1]
-            get_TsEdotrel(logMdot,Edotmin=Edotvals[i-1]+0.25*diff,Edotmax=Edotvals[i-1]+0.75*diff,npts=2*depth)
+            get_EdotTsrel(logMdot,Edotmin=Edotvals[i-1]+0.25*diff,Edotmax=Edotvals[i-1]+0.75*diff,npts=2*depth,tol=1e-9,save_decimals=10)
 
 
         raise Exception('Call Again')
@@ -331,8 +346,15 @@ def ImproveRoot(logMdot, eps=0.1, npts=5):
 
     logMdots,roots = IO.load_roots()
     if logMdot not in logMdots:
-        sys.exit("root doesn't exist yet")
+        sys.exit("root doesn't exist")
     root = roots[logMdots.index(logMdot)]
+
+    decimals = 10 if logMdot < 17 else 8
+
+    if logMdot<17:
+        decimals,tol = 10,1e-10
+    else:
+        decimals,tol = 8,1e-8
 
     # Search between the two Edot values that bound the root
     _,Edots,_,_ = IO.load_EdotTsrel(logMdot)
@@ -341,11 +363,11 @@ def ImproveRoot(logMdot, eps=0.1, npts=5):
     bound1 = Edots[i-1] + eps*diff
     bound2 = Edots[i] - eps*diff
 
-    get_TsEdotrel(logMdot,Edotmin=bound1,Edotmax=bound2,npts=npts)
-    #get_TsEdotrel(logMdot,Edotmin=root[0]-eps,Edotmax=root[0]+eps,npts=8)
+    get_EdotTsrel(logMdot,Edotmin=bound1,Edotmax=bound2,npts=npts,tol=tol,save_decimals=decimals)
+    #get_EdotTsrel(logMdot,Edotmin=root[0]-eps,Edotmax=root[0]+eps,npts=8)
     IO.clean_EdotTsrelfile(logMdot,warning=0)
     root = RootFinder(logMdot,checkrel=False)
-    IO.save_root(logMdot,root)
+    IO.save_root(logMdot,root,decimals=decimals)
     IO.clean_rootfile(warning=0)
 
 
@@ -395,7 +417,10 @@ def driver(logmdots):
 
             else:
                 success.append(logMdot)
-                save_root(logMdot,root)
+                if logMdot<17:
+                    IO.save_root(logMdot,root,decimals=10)
+                else:
+                    IO.save_root(logMdot,root)
 
         except Exception as e:
                 problems.append(logMdot)
@@ -411,55 +436,9 @@ def driver(logmdots):
     print('There were problems for :',problems)
 
     if len(success)>=1: #and input('\nClean (overwrite) updated root file? (0 or 1) '):
-       clean_rootfile(warning=0)
+       IO.clean_rootfile(warning=0)
     
 
-
-# def driver(logmdots,usefile=1, recursion_depth=0):
-
-#     recursion_flag = 0 if recursion_depth==0 else 1
-
-#     roots = []
-#     problems,success = [],[]
-
-#     if recursion_depth>5:
-#         print('Reached recursion limit, exiting. Did not find root for logMdot=',logmdots)
-#     if recursion_depth<5:
-
-#         if logmdots == 'all':
-#             logmdots = np.round(np.arange(19,17,-0.1),decimals=1)
-    
-#         for logMDOT in logmdots:
-    
-#             try:
-#                 root = RootFinder(logMDOT,checkrel=False)
-#                 roots.append(root)
-#                 success.append(logMDOT)
-#                 save_root(logMDOT,root)
-#             except Exception as e:
-    
-#                 if e.__str__() == 'Call Again':
-#                     print('Calling again.. (recursion depth %d)'%(recursion_depth+1))
-#                     driver([logMDOT],recursion_depth=recursion_depth+1)
-# #                    recursion_flag = 1
-    
-#                 else:
-#                     problems.append(logMDOT)
-#                     print('\n',e)
-#                     print('\nPROBLEM WITH LOGMDOT = ',logMDOT,'\nTrying again with verbose and checking EdotTs rel...\n\n')
-#                     try : RootFinder(logMDOT,checkrel=True,Verbose=True)
-#                     except: pass
-            
-#     if recursion_flag == 0:  
-#         # This will only print after the mother loop is over (won't print at each recursion. just for aesthetics :)
-#         print('\n\n*********************  SUMMARY *********************')
-#         print('Found roots for these values :',success)
-#         print('There were problems for these values :',problems)
-    
-#     if len(success)>=1: #and input('\nClean (overwrite) updated root file? (0 or 1) '):
-#        clean_rootfile(warning=0)
-    
-    
 
 # Command line call
 if __name__ == "__main__":

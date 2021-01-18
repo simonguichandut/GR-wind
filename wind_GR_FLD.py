@@ -523,6 +523,7 @@ def OuterBisection(rend=1e9,tol=1e-5):
         direction = -1 # diverged, other solution needs to have smaller Ts
 
     if verbose: print('Finding second solution')
+    # step = 1e-6 if np.log10(Mdot)>=17 else 1e-8
     step = 1e-6
     Tsb,rsb,solb = Tsa,rsa,sola
     i=0

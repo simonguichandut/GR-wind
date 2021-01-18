@@ -50,7 +50,7 @@ def get_name():
     return name
 
 
-def save_root(logMdot,root):
+def save_root(logMdot,root,decimals=8):
 
     filename = get_name()
     path = 'roots/roots_' + filename + '.txt'
@@ -62,8 +62,15 @@ def save_root(logMdot,root):
     else:
         f = open(path,'a')
 
-    f.write('{:<7.2f} \t {:<11.8f} \t {:<11.8f}\n'.format(
-            logMdot,root[0],root[1]))
+    if decimals == 8:
+        f.write('{:<7.2f} \t {:<11.8f} \t {:<11.8f}\n'.format(
+                logMdot,root[0],root[1]))
+    elif decimals == 9:
+        f.write('{:<7.2f} \t {:<12.9f} \t {:<12.9f}\n'.format(
+                logMdot,root[0],root[1]))
+    elif decimals == 10:
+        f.write('{:<7.2f} \t {:<13.10f} \t {:<13.10f}\n'.format(
+                logMdot,root[0],root[1]))
 
 
 def load_roots(logMdot=None,specific_file=None):
@@ -178,11 +185,11 @@ def read_from_file(logMdot, specific_file=None):
         return Wind(rs, r, T, rho, u, phi, Lstar, L, P, cs, taus)
 
 
-def save_plots(figs,fignames,img):
-    dirname = get_name()
-    path = 'results/' + dirname + '/plots/'
-    for fig,figname in zip(figs,fignames):
-        fig.savefig(path+figname+img)
+# def save_plots(figs,fignames,img):
+#     dirname = get_name()
+#     path = 'results/' + dirname + '/plots/'
+#     for fig,figname in zip(figs,fignames):
+#         fig.savefig(path+figname+img)
         
 
 def clean_rootfile(warning=1):
@@ -191,14 +198,14 @@ def clean_rootfile(warning=1):
     # (assuming the last one is the correct one)
     # Sort from lowest to biggest
 
-    logMdotS,roots = load_roots()
-    new_logMdotS = np.sort(np.unique(logMdotS))
+    logMdots,roots = load_roots()
+    new_logMdots = np.sort(np.unique(logMdots))
 
-    if list(new_logMdotS) != list(logMdotS):
+    if list(new_logMdots) != list(logMdots):
 
         v = []
-        for x in new_logMdotS:
-            duplicates = np.argwhere(logMdotS==x)
+        for x in new_logMdots:
+            duplicates = np.argwhere(logMdots==x)
             v.append(duplicates[-1][0]) # keeping the last one
 
         new_roots = []
@@ -214,9 +221,11 @@ def clean_rootfile(warning=1):
             path = 'roots/roots_' + filename + '.txt'
             os.remove(path)
 
-            for x,y in zip(new_logMdotS,new_roots): 
-                save_root(x,y)
-            
+            for x,y in zip(new_logMdots,new_roots): 
+                decimals = max((len(str(y[0])),len(str(y[1])))) - 2   
+                # print(decimals)             
+                save_root(x,y,decimals=decimals)
+                        
             
 # def pickle_save(name):
     
@@ -230,7 +239,7 @@ def clean_rootfile(warning=1):
 #         os.mkdir('pickle/')
 
 
-def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB):
+def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB, decimals=8):
 
     name = get_name()
     if 'FLD' not in name:
@@ -259,10 +268,15 @@ def save_EdotTsrel(logMdot, Edotvals, TsvalsA, TsvalsB):
         f = open(filepath, 'a')
 
     for edot, tsa, tsb in zip(Edotvals, TsvalsA, TsvalsB):
-        f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(
-                edot, tsa, tsb))
-        # f.write('{:<.11f} \t {:<.11f} \t {:<.11f}\n'.format(
-                # edot, tsa, tsb))
+        if decimals == 8:
+            f.write('{:<11.8f} \t {:<11.8f} \t {:<11.8f}\n'.format(
+                    edot, tsa, tsb))
+        elif decimals == 10:
+            f.write('{:<13.10f} \t {:<13.10f} \t {:<13.10f}\n'.format(
+                    edot, tsa, tsb))
+
+        # s = ('{:<%d.%df}'%(decimals+3,decimals))
+        # f.write(s.format(edot) + '\t' + s.format(tsa) + '\t' + s.format(tsb) + '\n')
 
 def load_EdotTsrel(logMdot, specific_file=None):
 
@@ -328,7 +342,12 @@ def clean_EdotTsrelfile(logMdot,warning=1):
             filepath = 'roots/FLD/' + name + '/EdotTsrel_'+('%.2f'%logMdot)+'.txt'
             os.remove(filepath)
 
-            save_EdotTsrel(logMdot,new_Edotvals,new_TsvalsA,new_TsvalsB)
+            # save_EdotTsrel(logMdot,new_Edotvals,new_TsvalsA,new_TsvalsB)
+            for e,tsa,tsb in zip(new_Edotvals,new_TsvalsA,new_TsvalsB):
+                decimals = max((len(str(e)),len(str(tsa)),len(str(tsb)))) - 2
+                # print(decimals)
+                save_EdotTsrel(logMdot,[e],[tsa],[tsb],decimals=decimals)
+            
 
 
 
