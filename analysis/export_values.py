@@ -24,8 +24,8 @@ def export(target = "."):
 
     with open(filename,'w') as f:
 
-        f.write(('{:<11s} \t '*18 +'{:<11s}\n').format(
-            'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)','Min (g)','Mout (g)'))
+        f.write(('{:<11s} \t '*20 +'{:<11s}\n').format(
+            'logMdot (g/s)','rb (cm)','Tb (K)','rhob (g/cm3)','Pb (dyne/cm2)','Lb (erg/s)','Lb* (erg/s)','Rph (cm)','Tph (K)','rhoph (g/cm3)','Lph (erg/s)','Lph* (erg/s)','rs (cm)','tflow (s)','tsound (s)','tsound2 (s)','Tau (s)','E_env (erg)','t_thermal (s)','Min (g)','Mout (g)'))
 
 
         for logMdot in logMDOTS[::-1]:
@@ -48,6 +48,7 @@ def export(target = "."):
                 tsound = soundtime(w.r,w.cs,rphot=rph)
                 tsound2 = soundtime2(w.r,w.cs,w.rs)
                 Tau = soundflowtime(w.r,w.cs,w.u,w.rs,rphot=rph)
+                E,tau_th = thermaltime(w.r,w.rho,w.T,w.u,w.Lstar[0],rphot=rph)
 
                 # Mass above and below sonic point
                 rhofunc = interp1d(w.r,w.rho,kind='cubic')
@@ -81,8 +82,8 @@ def export(target = "."):
                     (rph,w.T[iph],w.rho[iph],w.L[iph],w.Lstar[iph]))
 
                 # sonic point + timescales
-                f.write(('%0.6e \t'*5)%
-                    (w.rs,tflow,tsound,tsound2,Tau))
+                f.write(('%0.6e \t'*7)%
+                    (w.rs,tflow,tsound,tsound2,Tau,E,tau_th))
 
                 # Mass contained
                 f.write(('%0.6e \t'*2)%

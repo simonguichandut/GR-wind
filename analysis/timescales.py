@@ -1,7 +1,7 @@
 import sys
 sys.path.append(".")
 
-from numpy import argmin
+from numpy import argmin,pi
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
@@ -47,3 +47,40 @@ def soundflowtime(r,cs,u,rs,verbose=0,rphot=None):
         print("Integrated sound crossing time until rs: %.3e ; Integration error : %.3e"%(t1,err1))
         print("Integrated flow time time until rphot: %.3e ; Integration error : %.3e"%(t2,err2))
     return t1+t2
+
+
+def thermaltime(r,rho,T,v,Lbinf,rphot=None):
+    '''Thermal time defined as energy contained in envelope (radiation, gravitational,
+        kinetic) divided by luminosity at the base'''
+
+    # Load stellar params and methods
+    if rphot is not None:
+        from wind_GR_FLD import Swz
+    else:
+        from wind_GR import Swz
+        rphot = r[-1]
+
+    fT = interp1d(r,T,kind='linear')
+    frho = interp1d(r,rho,kind='linear')
+    fv = interp1d(r,v,kind='linear')    
+
+    arad = 7.5657e-15
+    c = 2.99792458e10
+
+
+
+    def dE(ri):  # From Fowler 1964
+        u = arad*fT(ri)**4
+        x = u*Swz(ri)**(-0.5) + (frho(ri)+u/c**2)*c**2*(1-Swz(ri)**(-0.5)) + (frho(ri)+u/c**2)*fv(ri)**2/2
+        dV = 4*pi*ri**2
+        return x*dV
+
+    E = quad(dE,rphot,r[0],epsrel=1e-4)[0]
+    tau_th = E/Lbinf
+
+    return E,tau_th
+
+
+
+
+

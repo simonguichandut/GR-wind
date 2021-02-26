@@ -73,9 +73,12 @@ class EOS:
         else:
             return 3.68e22 * (1-self.Z)*(1+self.X)*rho*T**(-7/2)
 
+    def kes(self,T):
+        return self.kappa0/(1.0+(T/4.5e8)**0.86) 
+
     def kappa(self,rho,T):
-        # return kappa0/(1.0+(T/4.5e8)**0.86)     
-        return self.kappa0/(1.0+(T/4.5e8)**0.86) + self.kff(rho,T)
+        return self.kes(T)    
+        # return self.kes(rho,T) + self.kff(rho,T)
 
     # Ideal gas sound speed c_s^2
     def cs2(self,T): 
@@ -208,9 +211,12 @@ class EOS_FLD:
         else:
             return 3.68e22 * (1-self.Z)*(1+self.X)*rho*T**(-7/2)
 
+    def kes(self,T):
+        return self.kappa0/(1.0+(T/4.5e8)**0.86) 
+
     def kappa(self,rho,T):
-        return self.kappa0/(1.0+(T/4.5e8)**0.86)     
-        # return self.kappa0/(1.0+(T/4.5e8)**0.86) + self.kff(rho,T)
+        return self.kes(T)    
+        # return self.kes(rho,T) + self.kff(rho,T)
 
     # Ideal gas sound speed c_s^2
     def cs2(self,T): 
