@@ -8,7 +8,7 @@ else:
 IO.make_directories()
 
 
-def run_wind(logMdot, recursed=0):
+def run_wind(logMdot, recursed=0, outer_only=True):
     # if roots exist, run this command to produce the full wind and save 
     
     logMdots,roots = IO.load_roots()
@@ -19,7 +19,7 @@ def run_wind(logMdot, recursed=0):
         return
 
     try:
-        w = MakeWind(root, logMdot, Verbose=1)
+        w = MakeWind(root, logMdot, Verbose=1, outer_only=outer_only)
         IO.write_to_file(logMdot, w)
 
     except Exception as E:
@@ -27,7 +27,7 @@ def run_wind(logMdot, recursed=0):
         if E.__str__() == 'Improve root':
             print('\nReinterpolating and finding better root\n')
             ImproveRoot(logMdot)
-            run_wind(logMdot, recursed=recursed+1)
+            run_wind(logMdot, recursed=recursed+1, outer_only=outer_only)
         
         else:
             print(E)

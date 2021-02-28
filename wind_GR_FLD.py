@@ -583,6 +583,7 @@ def OuterBisection(rend=1e9,tol=1e-5):
         print('Diverging at rs!')
         print(conv)
         print('rs=%.5e \t rsa=%.5e \t rsb=%.5e'%(rs,rsa,rsb))
+        sys.exit()
         
     # Construct initial arrays
     T,Phi = sola.sol(R[:i0])
@@ -676,7 +677,7 @@ def OuterBisection(rend=1e9,tol=1e-5):
     return R,T,Phi
 
 
-def MakeWind(root, logMdot, Verbose=0, IgnoreErrors = False):
+def MakeWind(root, logMdot, Verbose=0, outer_only = False):
     ''' Obtaining the wind solution for set of parameters Edot/LEdd and logTs'''
 
     setup_globals(root,logMdot,Verbose)
@@ -705,36 +706,41 @@ def MakeWind(root, logMdot, Verbose=0, IgnoreErrors = False):
     print('Judge if this is a problem or not')
     rs = rsnew
 
-    # First inner integration
-    r95 = 0.95*rs
-    # r_inner1 = np.linspace(rs, r95, 500)
-    r_inner1 = np.linspace(0.99*rs, r95, 30) # ignore data in 1% around rs
-    result_inner1 = innerIntegration_r()
-    T95, _ = result_inner1.sol(r95)
-    T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
+    if outer_only:
+        r,T,rho = r_outer,T_outer,rho_outer
 
-    _,rho_inner1,_,_ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, 
-                            subsonic=True)
-    rho95 = rho_inner1[-1]
+    else:
 
-    # Second inner integration 
-    result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
-    rho_inner2 = np.logspace(np.log10(rho95) , np.log10(result_inner2.t[-1]), 2000)
-    T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
-    
+        # First inner integration
+        r95 = 0.95*rs
+        # r_inner1 = np.linspace(rs, r95, 500)
+        r_inner1 = np.linspace(0.99*rs, r95, 30) # ignore data in 1% around rs
+        result_inner1 = innerIntegration_r()
+        T95, _ = result_inner1.sol(r95)
+        T_inner1, phi_inner1 = result_inner1.sol(r_inner1)
 
-    # Attaching arrays for r,rho,T from surface to photosphere  
-    #  (ignoring first point in inner2 because duplicate values at r=r95)
-    r_inner = np.append(np.flip(r_inner2[1:], axis=0),
-                        np.flip(r_inner1, axis=0))
-    T_inner = np.append(np.flip(T_inner2[1:], axis=0),
-                        np.flip(T_inner1, axis=0))
-    rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
-                        np.flip(rho_inner1, axis=0))
+        _,rho_inner1,_,_ = calculateVars_phi(r_inner1, T_inner1, phi=phi_inner1, 
+                                subsonic=True)
+        rho95 = rho_inner1[-1]
 
-    r = np.append(r_inner, r_outer)
-    T = np.append(T_inner, T_outer)
-    rho = np.append(rho_inner, rho_outer)
+        # Second inner integration 
+        result_inner2 = innerIntegration_rho(rho95, T95, returnResult=True)
+        rho_inner2 = np.logspace(np.log10(rho95) , np.log10(result_inner2.t[-1]), 2000)
+        T_inner2, r_inner2 = result_inner2.sol(rho_inner2)
+        
+
+        # Attaching arrays for r,rho,T from surface to photosphere  
+        #  (ignoring first point in inner2 because duplicate values at r=r95)
+        r_inner = np.append(np.flip(r_inner2[1:], axis=0),
+                            np.flip(r_inner1, axis=0))
+        T_inner = np.append(np.flip(T_inner2[1:], axis=0),
+                            np.flip(T_inner1, axis=0))
+        rho_inner = np.append(np.flip(rho_inner2[1:], axis=0),
+                            np.flip(rho_inner1, axis=0))
+
+        r = np.append(r_inner, r_outer)
+        T = np.append(T_inner, T_outer)
+        rho = np.append(rho_inner, rho_outer)
 
     # Calculate the rest of the vars
     u, rho, phi, Lstar, L, P, cs, taus, lam = calculateVars_rho(r, T, rho=rho, return_all=True)

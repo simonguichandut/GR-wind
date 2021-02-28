@@ -172,13 +172,15 @@ def get_EdotTsrel(logMdot,tol=1e-5,Verbose=0,Edotmin=1.01,Edotmax=1.04,npts=10,s
 def Check_EdotTsrel(logMdot, recalculate=True):
 
     # Suppose the EdotTsrel is slightly wrong, namely the solutions corresponding
-    # to logTsa and logTsb are not binding, they both crash in the same direction
+    # to logTsa and logTsb are not binding, they both crash in the same direction.
     # This could be because we changed the EOS or NS parameters, therefore the roots
     # have moved a bit. Instead of starting from scratch, we can search around the 
     # current EdotTsrel and just adjust it. This will save a lot of time.
 
     IO.clean_EdotTsrelfile(logMdot, warning=0)
     _,Edotvals,TsvalsA,TsvalsB = IO.load_EdotTsrel(logMdot)
+
+    print('\n Checking EdotTs rel for %d Edot values'%len(Edotvals))
 
     for i in range(len(Edotvals)):
         sola,_ = run_outer(logMdot,Edotvals[i],TsvalsA[i])
@@ -303,7 +305,7 @@ def RootFinder(logMdot,checkrel=True,Verbose=False,depth=1):
 
     if erra*errb > 0: # same sign (we'll enter this if we didn't break last loop)
 
-        if not flag_300:
+        if not flag_300[0]:
             if erra<0:
                 print('\nOnly negative errors (rb<RNS)') # need smaller Ts (smaller Edot)
                 diff = Edotvals[1]-Edotvals[0]
