@@ -8,7 +8,7 @@ else:
 IO.make_directories()
 
 
-def run_wind(logMdot, recursed=0, outer_only=True):
+def run_wind(logMdot, recursed=0, outer_only=False):
     # if roots exist, run this command to produce the full wind and save 
     
     logMdots,roots = IO.load_roots()

@@ -1,13 +1,13 @@
 ---- NS ----
-M	1.4	[Msun]
-R	10	[km]
+M	1.1     [Msun]
+R	12      [km]
 
 --- Wind ---
-y_inner 1e8	[g/cm2]	
-comp	He	(H, He or Ni..)
+y_inner 1e8     [g/cm2]	
+comp	He      (H, He or Ni..)
 EOS     IG      (IG = ideal gas, IGDE = ideal gas degenerate electrons)
 tau_out 3	
-FLD    	1    	(boolean)    
-Prad    exact   (simple or exact)
+FLD    	1       (boolean)    
+Prad    exact   (exact or exact)
 
 

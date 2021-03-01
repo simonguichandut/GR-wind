@@ -3,12 +3,8 @@
 import os
 import numpy as np
 import sys
-#sys.path.append(".") 
-## the above is so that the functions in this script work even when imported from somewhere else
-#local_path = os.path.realpath('IO.py')
-#print(local_path)
-#print(sys.argv[0])
-#
+
+
 def load_params(as_dict=True):
     with open('./params.txt','r') as f:
         next(f)
@@ -28,6 +24,40 @@ def load_params(as_dict=True):
                 'comp':comp,'EOS_type':EOS_type,'FLD':FLD,'Prad':Prad}
     else:
         return M,R,y_inner,tau_out,comp,EOS_type,FLD,Prad
+
+
+def change_param(key, new_value):
+
+    old_value = load_params()[key]
+
+    if type(old_value) == str:
+        old_value_string = old_value
+
+    else:
+
+        if old_value>100: # we are looking at y_inner which is formatted as '1e8'
+            old_value_string = '1e' + str(int(np.log10(old_value)))
+            print(old_value_string)
+
+        elif old_value%1==0: # has no decimals
+            old_value_string = str(int(old_value))
+
+        else:
+            old_value_string = str(old_value).rstrip('0') # remove trailing zeros if there are any
+
+    new_file_contents = ""
+    with open('./params.txt','r') as f:
+        for line in f:
+            if key in line:
+                new_file_contents += line.replace(old_value_string,str(new_value))
+            else:
+                new_file_contents += line
+
+    print(new_file_contents)
+
+    with open('./params.txt','w') as f:
+        f.write(new_file_contents)
+
 
 
 def get_name():  
